@@ -75,6 +75,21 @@
     .layer-btn:hover { color: var(--text); border-color: var(--accent-mid); }
     .layer-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
 
+    /* Local tileset picker */
+    #local-panel {
+      display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 14px;
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
+      padding: 10px 12px; flex-direction: column; gap: 6px; z-index: 2000; min-width: 220px;
+    }
+    #local-panel label { font-size: 0.68rem; color: var(--accent-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    .local-layer-btn {
+      font-size: 0.78rem; padding: 6px 10px; border-radius: 5px; cursor: pointer; text-align: left;
+      background: var(--accent-faint); border: 1px solid var(--accent-mid); color: var(--text);
+      transition: background 0.15s;
+    }
+    .local-layer-btn:hover { background: var(--accent-bg); color: var(--accent); }
+    #local-no-tiles { font-size: 0.75rem; color: var(--text-muted); }
+
     /* MapTiler key panel */
     #key-panel {
       display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 14px;
@@ -235,10 +250,16 @@
     <button class="layer-btn" onclick="setLayer('topo')">Topo</button>
     <button class="layer-btn" onclick="setLayer('mt')">MT Topo</button>
     <button class="layer-btn" onclick="setLayer('sat')">Sat</button>
+    <button class="layer-btn" id="local-btn" onclick="openLocalPanel()">Local</button>
   </div>
 </div>
 
 <div id="toast"></div>
+
+<div id="local-panel">
+  <label>Local Tilesets</label>
+  <div id="local-layers-list"><span id="local-no-tiles">Loading...</span></div>
+</div>
 
 <div id="key-panel">
   <label>MapTiler API Key</label>
@@ -313,9 +334,10 @@ function setLayer(name) {
     return;
   }
 
-  if (currentLayer === 'mt' && mtLayer) {
-    map.removeLayer(mtLayer);
-    mtLayer = null;
+  if (currentLayer === 'local' && localLayer) {
+    map.removeLayer(localLayer); localLayer = null;
+  } else if (currentLayer === 'mt' && mtLayer) {
+    map.removeLayer(mtLayer); mtLayer = null;
   } else {
     map.removeLayer(layers[currentLayer]);
   }
@@ -331,6 +353,52 @@ function setLayer(name) {
   document.querySelectorAll('.layer-btn').forEach(b => {
     const n = b.textContent.trim().toLowerCase().replace(/\s+/g, '');
     b.classList.toggle('active', n === name || (name === 'mt' && n === 'mttopo'));
+  });
+}
+
+// ===== LOCAL TILE SERVER =====
+const MBTILESERVER = 'http://localhost:8092';
+let localLayer = null;
+
+async function openLocalPanel() {
+  const panel = document.getElementById('local-panel');
+  const visible = panel.style.display === 'flex';
+  panel.style.display = visible ? 'none' : 'flex';
+  if (visible) return;
+
+  const list = document.getElementById('local-layers-list');
+  list.innerHTML = '<span id="local-no-tiles">Loading...</span>';
+
+  try {
+    const r = await fetch(MBTILESERVER + '/services');
+    const services = await r.json();
+    if (!services.length) {
+      list.innerHTML = '<span id="local-no-tiles">No local tiles yet — download in Map App first.</span>';
+      return;
+    }
+    list.innerHTML = services.map(function(s) {
+      return '<button class="local-layer-btn" onclick="setLocalLayer(\'' + s.id + '\',\'' + (s.name || s.id) + '\')">' + (s.name || s.id) + '</button>';
+    }).join('');
+  } catch(e) {
+    list.innerHTML = '<span id="local-no-tiles">mbtileserver not reachable.</span>';
+  }
+}
+
+function setLocalLayer(id, name) {
+  document.getElementById('local-panel').style.display = 'none';
+
+  if (localLayer) { map.removeLayer(localLayer); localLayer = null; }
+  if (currentLayer === 'mt' && mtLayer) { map.removeLayer(mtLayer); mtLayer = null; }
+  else if (layers[currentLayer]) { map.removeLayer(layers[currentLayer]); }
+
+  localLayer = L.tileLayer(MBTILESERVER + '/services/' + id + '/tiles/{z}/{x}/{y}.png', {
+    attribution: 'Local · ' + name, maxZoom: 18,
+  });
+  localLayer.addTo(map);
+  currentLayer = 'local';
+
+  document.querySelectorAll('.layer-btn').forEach(function(b) {
+    b.classList.toggle('active', b.id === 'local-btn');
   });
 }
 
