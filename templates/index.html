@@ -98,6 +98,14 @@
       background: transparent; border: 1px solid var(--border); color: var(--text-muted);
     }
 
+    #toast {
+      position: fixed; bottom: calc(var(--telem-h) + 12px); left: 50%; transform: translateX(-50%);
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
+      padding: 8px 18px; font-size: 0.78rem; color: var(--text); z-index: 3000;
+      opacity: 0; transition: opacity 0.25s; pointer-events: none; white-space: nowrap;
+    }
+    #toast.show { opacity: 1; }
+
     #main { display: flex; height: calc(100vh - var(--header-h) - var(--telem-h)); }
 
     #sidebar {
@@ -220,6 +228,7 @@
   <button class="header-btn danger" onclick="releaseRTL()">
     <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
   </button>
+  <button class="icon-btn" onclick="upgradeApp()" title="Update from GitHub"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
   <button class="icon-btn" onclick="toggleKeyPanel()" title="MapTiler API key"><i class="fa-solid fa-key"></i></button>
   <div id="layer-btns">
     <button class="layer-btn active" onclick="setLayer('osm')">OSM</button>
@@ -228,6 +237,8 @@
     <button class="layer-btn" onclick="setLayer('sat')">Sat</button>
   </div>
 </div>
+
+<div id="toast"></div>
 
 <div id="key-panel">
   <label>MapTiler API Key</label>
@@ -619,6 +630,39 @@ function connectAutoRx() {
   } catch(e) {
     dot.className = 'off';
     label.textContent = 'Error';
+  }
+}
+
+// ===== UPGRADE =====
+function showToast(msg, duration) {
+  const t = document.getElementById('toast');
+  t.textContent = msg;
+  t.classList.add('show');
+  setTimeout(function() { t.classList.remove('show'); }, duration || 3000);
+}
+
+async function upgradeApp() {
+  const btn = event.currentTarget;
+  btn.style.pointerEvents = 'none';
+  showToast('Checking for updates...', 60000);
+  try {
+    const r = await fetch('/api/upgrade', { method: 'POST' });
+    const data = await r.json();
+    if (!data.ok) {
+      showToast('Update failed: ' + data.msg);
+      btn.style.pointerEvents = '';
+      return;
+    }
+    if (data.msg.includes('Already up to date')) {
+      showToast('Already up to date.');
+      btn.style.pointerEvents = '';
+      return;
+    }
+    showToast('Updated. Reloading in 3s...', 4000);
+    setTimeout(function() { location.reload(); }, 3000);
+  } catch(e) {
+    showToast('Update error.');
+    btn.style.pointerEvents = '';
   }
 }
 

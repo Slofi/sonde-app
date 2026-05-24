@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-import json, os, subprocess, glob
+import json, os, subprocess, glob, threading
 
 app = Flask(__name__)
 PRESETS_FILE = os.path.join(os.path.dirname(__file__), 'presets.json')
@@ -64,6 +64,19 @@ def rtl_release():
         except Exception:
             pass
     return jsonify({'ok': True})
+
+@app.route('/api/upgrade', methods=['POST'])
+def upgrade():
+    app_dir = os.path.dirname(os.path.abspath(__file__))
+    result = subprocess.run(['git', 'pull'], cwd=app_dir, capture_output=True, text=True)
+    if result.returncode != 0:
+        return jsonify({'ok': False, 'msg': result.stderr.strip() or 'git pull failed'})
+    msg = result.stdout.strip()
+    def restart():
+        import time; time.sleep(1)
+        subprocess.run(['systemctl', '--user', 'restart', 'sonde.service'], capture_output=True)
+    threading.Thread(target=restart, daemon=True).start()
+    return jsonify({'ok': True, 'msg': msg})
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5100, debug=False)
