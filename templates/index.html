@@ -98,6 +98,37 @@
     .draw-action-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
     #draw-info { font-size: 0.72rem; color: var(--accent-muted); padding: 2px 4px; min-height: 16px; }
 
+    /* ── Floating draw toolbar (shown while tool active) ── */
+    #draw-toolbar {
+      position: fixed;
+      bottom: calc(var(--telem-h) + 14px);
+      left: 50%;
+      transform: translateX(-50%);
+      background: var(--bg2);
+      border: 1px solid var(--accent-mid);
+      border-radius: 10px;
+      padding: 7px 12px;
+      display: none;
+      align-items: center;
+      gap: 8px;
+      z-index: 1500;
+      box-shadow: 0 4px 18px rgba(0,0,0,0.5);
+      white-space: nowrap;
+    }
+    #draw-toolbar.show { display: flex; }
+    #draw-toolbar-icon { color: var(--accent); font-size: 0.8rem; }
+    #draw-toolbar-label { font-size: 0.75rem; font-weight: 600; color: var(--accent); letter-spacing: 0.06em; text-transform: uppercase; }
+    #draw-toolbar-info { font-size: 0.75rem; color: var(--text-muted); min-width: 80px; }
+    .tb-sep { width: 1px; height: 18px; background: var(--border); margin: 0 2px; }
+    .tb-btn {
+      font-size: 0.72rem; font-weight: 500; padding: 4px 10px; border-radius: 6px;
+      border: 1px solid var(--border); background: transparent; color: var(--text-muted);
+      cursor: pointer; transition: all 0.12s; display: flex; align-items: center; gap: 5px;
+    }
+    .tb-btn:hover { color: var(--text); border-color: var(--accent-mid); }
+    .tb-btn.finish { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    .tb-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
+
     /* Banner */
     #draw-banner {
       position: absolute; top: calc(var(--header-h) + 8px); left: 50%; transform: translateX(-50%);
@@ -338,11 +369,6 @@
     <button class="draw-tool-btn" id="dtool-polygon" onclick="startDrawTool('polygon')"><i class="fa-solid fa-draw-polygon"></i> Area</button>
     <button class="draw-tool-btn" id="dtool-circle"  onclick="startDrawTool('circle')"> <i class="fa-regular fa-circle"></i> Circle</button>
     <hr class="draw-sep">
-    <div id="draw-info"></div>
-    <button class="draw-action-btn finish" id="draw-finish-btn" onclick="finishDrawTool()" hidden><i class="fa-solid fa-check"></i> Finish</button>
-    <button class="draw-action-btn"        id="draw-undo-btn"   onclick="undoDrawPoint()"  hidden><i class="fa-solid fa-rotate-left"></i> Undo Last</button>
-    <button class="draw-action-btn danger" id="draw-cancel-btn" onclick="clearDrawTool()"  hidden><i class="fa-solid fa-xmark"></i> Cancel</button>
-    <hr class="draw-sep" id="draw-clear-sep">
     <button class="draw-action-btn danger" id="draw-clearall-btn" onclick="clearAllDrawings()"><i class="fa-solid fa-trash"></i> Clear All</button>
   </div>
 
@@ -387,6 +413,15 @@
 
 <div id="toast"></div>
 <div id="draw-banner"></div>
+<div id="draw-toolbar">
+  <span id="draw-toolbar-icon"><i class="fa-solid fa-pencil"></i></span>
+  <span id="draw-toolbar-label">Draw</span>
+  <span id="draw-toolbar-info"></span>
+  <div class="tb-sep"></div>
+  <button class="tb-btn" id="tb-undo-btn"   onclick="undoDrawPoint()"><i class="fa-solid fa-rotate-left"></i> Undo</button>
+  <button class="tb-btn finish" id="tb-finish-btn" onclick="finishDrawTool()"><i class="fa-solid fa-check"></i> Finish</button>
+  <button class="tb-btn danger" id="tb-cancel-btn" onclick="clearDrawTool()"><i class="fa-solid fa-xmark"></i> Cancel</button>
+</div>
 
 <div id="local-panel">
   <label>Local Tilesets</label>
@@ -773,16 +808,16 @@ async function killApp() {
 
 // ===== DRAWING ENGINE =====
 const draw = {
-  tool: null,        // 'ruler' | 'line' | 'polygon' | 'circle'
-  points: [],        // [{lat,lng}]
-  markers: [],       // L.marker[]
-  shape: null,       // L.polyline | L.polygon | L.circle
-  preview: null,     // L.circle (circle tool preview)
+  tool: null,
+  points: [],
+  markers: [],
+  shape: null,
+  previewLine: null,   // rubber-band line to cursor
+  preview: null,       // circle preview
   circleCenter: null,
 };
 
-const DRAW_COLOR  = '#deaf4a';
-const DRAW_COLOR2 = '#f59e0b';
+const DRAW_COLOR = '#deaf4a';
 
 function fmtDist(m) {
   return m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m';
@@ -794,71 +829,87 @@ function haversine(a, b) {
   return 2 * R * Math.asin(Math.sqrt(s));
 }
 
-function setDrawBanner(text) {
-  const b = document.getElementById('draw-banner');
-  b.textContent = text; b.classList.toggle('show', !!text);
+// ── Toolbar helpers ──
+const TOOL_META = {
+  ruler:   { icon: 'fa-ruler',        label: 'Ruler'   },
+  line:    { icon: 'fa-minus',        label: 'Line'    },
+  polygon: { icon: 'fa-draw-polygon', label: 'Area'    },
+  circle:  { icon: 'fa-circle',       label: 'Circle'  },
+};
+
+function showToolbar(tool) {
+  const tb = document.getElementById('draw-toolbar');
+  const meta = TOOL_META[tool] || {};
+  document.getElementById('draw-toolbar-icon').innerHTML = '<i class="fa-solid ' + (meta.icon || 'fa-pencil') + '"></i>';
+  document.getElementById('draw-toolbar-label').textContent = meta.label || tool;
+  tb.classList.add('show');
+  updateToolbarButtons();
 }
-function setDrawInfo(text) {
-  document.getElementById('draw-info').textContent = text;
+function hideToolbar() {
+  document.getElementById('draw-toolbar').classList.remove('show');
 }
-function updateDrawButtons() {
-  const active = !!draw.tool;
+function setToolbarInfo(text) {
+  document.getElementById('draw-toolbar-info').textContent = text || '';
+}
+function updateToolbarButtons() {
   const hasPts  = draw.points.length > 0;
   const canFin  = draw.tool === 'circle' ? !!draw.circleCenter : draw.points.length >= 2;
   const canUndo = draw.tool !== 'circle' && hasPts;
-  document.getElementById('draw-finish-btn').hidden = !active || !canFin;
-  document.getElementById('draw-undo-btn').hidden   = !active || !canUndo;
-  document.getElementById('draw-cancel-btn').hidden = !active;
-  ['dtool-ruler','dtool-line','dtool-polygon','dtool-circle'].forEach(id => {
-    const t = id.replace('dtool-','');
-    document.getElementById(id).classList.toggle('active', draw.tool === t);
-  });
+  document.getElementById('tb-finish-btn').hidden = !canFin;
+  document.getElementById('tb-undo-btn').hidden   = !canUndo;
 }
+
+// ── Tool state ──
+function setDrawInfo(text) { setToolbarInfo(text); }  // keep old callers working
 
 function clearDrawTool() {
   draw.markers.forEach(m => map.removeLayer(m));
   draw.markers = [];
-  if (draw.shape)   { map.removeLayer(draw.shape);   draw.shape   = null; }
-  if (draw.preview) { map.removeLayer(draw.preview);  draw.preview = null; }
+  if (draw.shape)       { map.removeLayer(draw.shape);       draw.shape       = null; }
+  if (draw.previewLine) { map.removeLayer(draw.previewLine); draw.previewLine = null; }
+  if (draw.preview)     { map.removeLayer(draw.preview);     draw.preview     = null; }
   draw.points = [];
   draw.tool = null;
   draw.circleCenter = null;
   document.getElementById('map').classList.remove('draw-active');
   setDrawBanner('');
-  setDrawInfo('');
-  updateDrawButtons();
+  hideToolbar();
+  // update draw panel tool buttons
+  ['dtool-ruler','dtool-line','dtool-polygon','dtool-circle'].forEach(id =>
+    document.getElementById(id).classList.remove('active'));
 }
 
 function startDrawTool(tool) {
   clearDrawTool();
   draw.tool = tool;
   document.getElementById('map').classList.add('draw-active');
+  document.getElementById('dtool-' + tool).classList.add('active');
+  // close draw panel so it doesn't block
+  document.getElementById('draw-panel').classList.remove('open');
   const banners = {
-    ruler:   'Click points to measure. Finish when done.',
-    line:    'Click points for a line. Finish when done.',
-    polygon: 'Click corners of the area. Finish when done.',
+    ruler:   'Click to place points and measure distance.',
+    line:    'Click to place points for a line.',
+    polygon: 'Click corners of the area.',
     circle:  'Click to set the circle center.',
   };
   setDrawBanner(banners[tool]);
-  updateDrawButtons();
+  showToolbar(tool);
 }
 
 function addDrawPoint(latlng) {
   if (!draw.tool || draw.tool === 'circle') return;
-  const idx = draw.points.length;
   draw.points.push(latlng);
   const dot = L.circleMarker(latlng, {
     radius: 5, color: DRAW_COLOR, fillColor: DRAW_COLOR, fillOpacity: 1, weight: 2,
   }).addTo(map);
   draw.markers.push(dot);
   redrawShape();
-  // update distance info for ruler
   if (draw.tool === 'ruler' && draw.points.length >= 2) {
     let total = 0;
     for (let i = 1; i < draw.points.length; i++) total += haversine(draw.points[i-1], draw.points[i]);
-    setDrawInfo('Total: ' + fmtDist(total));
+    setToolbarInfo('Total: ' + fmtDist(total));
   }
-  updateDrawButtons();
+  updateToolbarButtons();
 }
 
 function undoDrawPoint() {
@@ -870,11 +921,11 @@ function undoDrawPoint() {
   if (draw.tool === 'ruler' && draw.points.length >= 2) {
     let total = 0;
     for (let i = 1; i < draw.points.length; i++) total += haversine(draw.points[i-1], draw.points[i]);
-    setDrawInfo('Total: ' + fmtDist(total));
-  } else {
-    setDrawInfo('');
+    setToolbarInfo('Total: ' + fmtDist(total));
+  } else if (draw.tool === 'ruler') {
+    setToolbarInfo('');
   }
-  updateDrawButtons();
+  updateToolbarButtons();
 }
 
 function redrawShape() {
@@ -888,48 +939,47 @@ function redrawShape() {
   }
 }
 
+function updateRubberBand(latlng) {
+  if (draw.previewLine) { map.removeLayer(draw.previewLine); draw.previewLine = null; }
+  if (!draw.tool || draw.tool === 'circle' || !draw.points.length) return;
+  const last = draw.points[draw.points.length - 1];
+  draw.previewLine = L.polyline([[last.lat, last.lng], [latlng.lat, latlng.lng]], {
+    color: DRAW_COLOR, weight: 2, opacity: 0.55, dashArray: '7,7',
+  }).addTo(map);
+}
+
 function finishDrawTool() {
   if (!draw.tool) return;
   if (draw.tool === 'circle') {
-    // circle is already on map from preview — just deactivate tool, keep shape
-    draw.preview = null; // don't remove it
-    draw.shape = null;
+    draw.preview = null;
     draw.circleCenter = null;
-    draw.tool = null;
-    document.getElementById('map').classList.remove('draw-active');
-    setDrawBanner('');
-    setDrawInfo('');
-    updateDrawButtons();
-    return;
+  } else {
+    if (draw.points.length < 2) return;
+    if (draw.shape)  drawnShapes.push(draw.shape);
+    draw.markers.forEach(m => drawnShapes.push(m));
+    draw.shape   = null;
+    draw.markers = [];
+    draw.points  = [];
   }
-  if (draw.points.length < 2) return;
-  // track finished shape + markers for clearAllDrawings()
-  if (draw.shape) drawnShapes.push(draw.shape);
-  draw.markers.forEach(m => drawnShapes.push(m));
-  draw.shape = null;
-  draw.markers = [];
-  draw.points = [];
+  if (draw.previewLine) { map.removeLayer(draw.previewLine); draw.previewLine = null; }
   draw.tool = null;
   document.getElementById('map').classList.remove('draw-active');
+  ['dtool-ruler','dtool-line','dtool-polygon','dtool-circle'].forEach(id =>
+    document.getElementById(id).classList.remove('active'));
   setDrawBanner('');
-  setDrawInfo('');
-  updateDrawButtons();
+  hideToolbar();
 }
 
 function clearAllDrawings() {
   clearDrawTool();
-  // remove any lingering finished shapes tracked separately
   drawnShapes.forEach(s => map.removeLayer(s));
   drawnShapes.length = 0;
 }
 
-// Finished shapes that persist after finishDrawTool()
 const drawnShapes = [];
 
-// Circle tool state machine
 function handleCircleClick(latlng) {
   if (!draw.circleCenter) {
-    // first click — set center
     draw.circleCenter = latlng;
     const dot = L.circleMarker(latlng, {
       radius: 6, color: DRAW_COLOR, fillColor: DRAW_COLOR, fillOpacity: 1, weight: 2,
@@ -937,28 +987,22 @@ function handleCircleClick(latlng) {
     draw.markers.push(dot);
     draw.preview = L.circle(latlng, { radius: 1, color: DRAW_COLOR, weight: 2, fillOpacity: 0.1 }).addTo(map);
     setDrawBanner('Move mouse to set radius, then click to confirm.');
-    updateDrawButtons();
+    updateToolbarButtons();
   } else {
-    // second click — confirm
     const r = haversine(draw.circleCenter, latlng);
-    if (draw.preview) map.removeLayer(draw.preview);
-    const finalCircle = L.circle(draw.circleCenter, {
-      radius: r, color: DRAW_COLOR, weight: 2, fillOpacity: 0.1,
-    }).addTo(map);
-    drawnShapes.push(finalCircle);
-    draw.preview = null;
-    draw.markers.forEach(m => map.removeLayer(m));
+    if (draw.preview) { drawnShapes.push(draw.preview); draw.preview = null; }
+    draw.markers.forEach(m => drawnShapes.push(m));
     draw.markers = [];
     draw.circleCenter = null;
+    if (draw.previewLine) { map.removeLayer(draw.previewLine); draw.previewLine = null; }
     draw.tool = null;
     document.getElementById('map').classList.remove('draw-active');
+    document.getElementById('dtool-circle').classList.remove('active');
     setDrawBanner('');
-    setDrawInfo('');
-    updateDrawButtons();
+    hideToolbar();
   }
 }
 
-// Map event wiring (added after map init)
 function initDrawEvents() {
   map.on('click', function(e) {
     if (!draw.tool) return;
@@ -972,15 +1016,16 @@ function initDrawEvents() {
     if (draw.tool === 'circle' && draw.circleCenter && draw.preview) {
       const r = haversine(draw.circleCenter, e.latlng);
       draw.preview.setRadius(r);
-      setDrawInfo('Radius: ' + fmtDist(r));
+      setToolbarInfo('Radius: ' + fmtDist(r));
+    } else {
+      updateRubberBand(e.latlng);
     }
   });
-  // keyboard shortcuts
   document.addEventListener('keydown', function(e) {
     if (!draw.tool) return;
-    if (e.key === 'Escape') clearDrawTool();
+    if (e.key === 'Escape')                                          clearDrawTool();
     if ((e.key === 'Backspace' || e.key === 'Delete') && draw.tool !== 'circle') undoDrawPoint();
-    if (e.key === 'Enter') finishDrawTool();
+    if (e.key === 'Enter')                                           finishDrawTool();
   });
 }
 
