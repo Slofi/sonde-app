@@ -9,11 +9,13 @@ updated:: 2026-05-24
 
 ## State
 
-| **Status**  | Active — app running, auto_rx not yet installed |
-| **Port**    | 5100 |
-| **Host**    | Cyberdeck (rock-5b, 100.97.104.107) |
-| **Service** | sonde.service (user systemd, enabled) |
-| **Backend** | radiosonde_auto_rx (port 5000) — not yet installed |
+| **Status**       | Active — app running, auto_rx running as autorx.service |
+| **Port**         | 5100 |
+| **Host**         | Cyberdeck (rock-5b, 100.97.104.107) |
+| **Service**      | sonde.service (user systemd, enabled) |
+| **auto_rx**      | Installed at ~/radiosonde_auto_rx/, runs as autorx.service |
+| **auto_rx svc**  | autorx.service (user systemd, NOT enabled — started via Scan button) |
+| **MapTiler key** | Not yet entered — enter via key icon in header |
 
 ## Access
 
@@ -50,14 +52,18 @@ journalctl --user -u sonde.service -f
 
 ## Pending
 
-- Install radiosonde_auto_rx (see GitHub wiki for ARM64/Debian install)
+- Enter MapTiler API key in app (key icon in header)
 - Verify/correct European frequency presets against live data (sondehub.org)
-- Test socket.io connection to auto_rx once installed
-- Consider landing zone prediction integration (future)
+- Remove "Radiosonde" tile from launcher (replaced by "Sonde" tile)
+- Wait for 00 UTC or 12 UTC launch window to test real sonde reception
 
 ## Changelog
 
-**2026-05-24** — Initial build. Flask app on port 5100, Leaflet map (OSM/Topo/MT Topo/Sat), editable frequency presets, socket.io connection to auto_rx, telemetry bar. Launcher tile added. (Session 308)
+**2026-05-24** — Shared tile path confirmed: Map App downloads MBTiles into `~/maps/mbtiles/`, `mbtileserver` serves that directory on port 8092, and Sonde App's Local tile picker reads it. (Session 308)
+**2026-05-24** — Local tile layer added: fetches tilesets from mbtileserver (port 8092), shows picker. (Session 308)
+**2026-05-24** — autorx.service created (user systemd, started via Scan button). In-app upgrade button added (git pull + service restart). GPX track export added. Duplicate add-preset button removed. App renamed to Sonde App. All pushed to GitHub. (Session 308)
+**2026-05-24** — socket.io fixed: namespace /update_status, event telemetry_event, field id not callsign, freq as formatted string. CORS fixed in auto_rx web.py. MT Topo changed to MapTiler (requires API key). Scan + Release RTL buttons added. (Session 308)
+**2026-05-24** — Initial build. Flask app on port 5100, Leaflet map, editable presets, telemetry bar. Launcher tile added. auto_rx installed, built, configured (lat/lon/alt), udev rules fixed, RTL-SDR Blog V4 confirmed working. (Session 308)
 
 ---
 ---
