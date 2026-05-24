@@ -149,7 +149,7 @@
     #draw-panel {
       display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 130px;
       background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
-      padding: 10px 12px; flex-direction: column; gap: 6px; z-index: 2000; min-width: 170px;
+      padding: 10px 12px; flex-direction: column; gap: 6px; z-index: 2000; min-width: 210px;
     }
     #draw-panel.open { display: flex; }
     .draw-group-label {
@@ -225,6 +225,40 @@
     .tb-color-swatch:hover { border-color: #fff; }
     .tb-color-swatch.selected { border-color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
     #tb-custom-color { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; padding: 0; }
+
+    /* Draw shape manager */
+    .draw-shapes-header { display: flex; align-items: center; justify-content: space-between; margin: 2px 0; }
+    .draw-shapes-header .draw-group-label { margin: 0; }
+    .draw-labels-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      cursor: pointer; font-size: 0.65rem; padding: 2px 7px; border-radius: 4px;
+      transition: all 0.12s; display: flex; align-items: center; gap: 4px; white-space: nowrap;
+    }
+    .draw-labels-btn:hover { color: var(--text); border-color: var(--accent-mid); }
+    .draw-labels-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    #draw-shape-list { display: flex; flex-direction: column; gap: 2px; max-height: 180px; overflow-y: auto; }
+    #draw-shape-list::-webkit-scrollbar { width: 3px; }
+    #draw-shape-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
+    #draw-no-shapes { font-size: 0.72rem; color: var(--text-muted); text-align: center; padding: 6px 0; }
+    .dshape-item { display: flex; align-items: center; gap: 4px; padding: 3px 0; min-width: 0; }
+    .dshape-dot { width: 10px; height: 10px; border-radius: 2px; flex-shrink: 0; }
+    .dshape-name { flex: 1; font-size: 0.75rem; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; min-width: 0; }
+    .dshape-name-input {
+      flex: 1; font-size: 0.75rem; background: rgba(255,255,255,0.07); border: 1px solid var(--accent-mid);
+      border-radius: 3px; color: var(--text); padding: 2px 5px; outline: none; min-width: 0; width: 0;
+    }
+    .dshape-icon-btn {
+      background: none; border: none; color: var(--text-muted); cursor: pointer;
+      font-size: 0.68rem; padding: 2px 4px; border-radius: 3px; flex-shrink: 0; transition: color 0.12s;
+    }
+    .dshape-icon-btn:hover { color: var(--text); }
+    .dshape-icon-btn.eye-off { opacity: 0.35; }
+    .dshape-icon-btn.danger:hover { color: var(--red); }
+    /* Map shape labels */
+    .draw-label {
+      font-size: 0.72rem; font-weight: 600; white-space: nowrap; pointer-events: none;
+      text-shadow: 0 0 4px #000a, 0 0 2px #000;
+    }
 
     /* Crosshair cursor during drawing */
     #map.draw-active { cursor: crosshair !important; }
@@ -457,6 +491,12 @@
     <button class="draw-tool-btn" id="dtool-polygon" onclick="startDrawTool('polygon')"><i class="fa-solid fa-draw-polygon"></i> Area</button>
     <button class="draw-tool-btn" id="dtool-circle"  onclick="startDrawTool('circle')"> <i class="fa-regular fa-circle"></i> Circle</button>
     <hr class="draw-sep">
+    <div class="draw-shapes-header">
+      <div class="draw-group-label">Shapes</div>
+      <button class="draw-labels-btn" id="draw-labels-btn" onclick="toggleLabels()" title="Toggle name labels on map"><i class="fa-solid fa-tag"></i> Labels</button>
+    </div>
+    <div id="draw-shape-list"><div id="draw-no-shapes">No shapes yet</div></div>
+    <hr class="draw-sep">
     <button class="draw-action-btn danger" id="draw-clearall-btn" onclick="clearAllDrawings()"><i class="fa-solid fa-trash"></i> Clear All</button>
   </div>
 
@@ -523,12 +563,12 @@
   <span id="draw-toolbar-label">Draw</span>
   <span id="draw-toolbar-info"></span>
   <div class="tb-sep"></div>
-  <div class="tb-color-swatch selected" style="background:#deaf4a" title="Gold"    onclick="setDrawColor('#deaf4a',this)"></div>
-  <div class="tb-color-swatch"          style="background:#f87171" title="Red"     onclick="setDrawColor('#f87171',this)"></div>
-  <div class="tb-color-swatch"          style="background:#60a5fa" title="Blue"    onclick="setDrawColor('#60a5fa',this)"></div>
-  <div class="tb-color-swatch"          style="background:#34d399" title="Green"   onclick="setDrawColor('#34d399',this)"></div>
-  <div class="tb-color-swatch"          style="background:#e2e8f0" title="White"   onclick="setDrawColor('#e2e8f0',this)"></div>
-  <input type="color" id="tb-custom-color" title="Custom colour" value="#deaf4a" oninput="setDrawColor(this.value,null)">
+  <div class="tb-color-swatch selected" style="background:#ffcc33" title="Yellow"  onclick="setDrawColor('#ffcc33',this)"></div>
+  <div class="tb-color-swatch"          style="background:#ff3333" title="Red"     onclick="setDrawColor('#ff3333',this)"></div>
+  <div class="tb-color-swatch"          style="background:#3399ff" title="Blue"    onclick="setDrawColor('#3399ff',this)"></div>
+  <div class="tb-color-swatch"          style="background:#00ee77" title="Green"   onclick="setDrawColor('#00ee77',this)"></div>
+  <div class="tb-color-swatch"          style="background:#ffffff" title="White"   onclick="setDrawColor('#ffffff',this)"></div>
+  <input type="color" id="tb-custom-color" title="Custom colour" value="#ffcc33" oninput="setDrawColor(this.value,null)">
   <div class="tb-sep"></div>
   <button class="tb-btn" id="tb-undo-btn"   onclick="undoDrawPoint()"><i class="fa-solid fa-rotate-left"></i> Undo</button>
   <button class="tb-btn finish" id="tb-finish-btn" onclick="finishDrawTool()"><i class="fa-solid fa-check"></i> Finish</button>
@@ -929,7 +969,7 @@ const draw = {
   circleCenter: null,
 };
 
-let DRAW_COLOR = '#deaf4a';
+let DRAW_COLOR = '#ffcc33';
 
 function setDrawColor(hex, swatchEl) {
   DRAW_COLOR = hex;
@@ -1080,8 +1120,9 @@ function finishDrawTool() {
     draw.circleCenter = null;
   } else {
     if (draw.points.length < 2) return;
-    if (draw.shape)  drawnShapes.push(draw.shape);
-    draw.markers.forEach(m => drawnShapes.push(m));
+    if (draw.shape) {
+      addManagedShape(draw.tool, draw.shape, [...draw.markers], DRAW_COLOR);
+    }
     draw.shape   = null;
     draw.markers = [];
     draw.points  = [];
@@ -1097,11 +1138,152 @@ function finishDrawTool() {
 
 function clearAllDrawings() {
   clearDrawTool();
-  drawnShapes.forEach(s => map.removeLayer(s));
+  drawnShapes.forEach(function(s) {
+    s.layers.forEach(function(l) { map.removeLayer(l); });
+    if (s.label) { map.removeLayer(s.label); s.label = null; }
+  });
   drawnShapes.length = 0;
+  shapeCounter = { ruler: 0, line: 0, polygon: 0, circle: 0 };
+  renderShapeList();
 }
 
+// ── Managed shape list ──
 const drawnShapes = [];
+let shapeCounter = { ruler: 0, line: 0, polygon: 0, circle: 0 };
+let showLabels = false;
+
+function addManagedShape(type, mainLayer, extraLayers, color) {
+  shapeCounter[type] = (shapeCounter[type] || 0) + 1;
+  const names = { ruler: 'Ruler', line: 'Line', polygon: 'Area', circle: 'Circle' };
+  const name = names[type] + ' ' + shapeCounter[type];
+  const id = 'shape_' + Date.now() + '_' + Math.random().toString(36).slice(2, 6);
+  const entry = {
+    id, name, type, color,
+    layers: [mainLayer, ...extraLayers],
+    mainLayer,
+    label: null, visible: true, editing: false,
+  };
+  drawnShapes.push(entry);
+  if (showLabels) updateShapeLabel(entry);
+  renderShapeList();
+}
+
+function renderShapeList() {
+  const list = document.getElementById('draw-shape-list');
+  if (!list) return;
+  if (!drawnShapes.length) {
+    list.innerHTML = '<div id="draw-no-shapes">No shapes yet</div>';
+    return;
+  }
+  list.innerHTML = drawnShapes.map(function(s) {
+    const safeId = s.id;
+    const safeName = s.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
+    const eyeIcon = s.visible ? 'fa-eye' : 'fa-eye-slash';
+    const eyeClass = s.visible ? '' : ' eye-off';
+    if (s.editing) {
+      return '<div class="dshape-item">'
+        + '<div class="dshape-dot" style="background:' + s.color + '"></div>'
+        + '<input class="dshape-name-input" id="dshape-input-' + safeId + '" value="' + safeName + '"'
+        + ' onkeydown="if(event.key===\'Enter\')saveShapeName(\'' + safeId + '\');else if(event.key===\'Escape\')cancelEditShapeName(\'' + safeId + '\')">'
+        + '<button class="dshape-icon-btn" onclick="saveShapeName(\'' + safeId + '\')" title="Save"><i class="fa-solid fa-check"></i></button>'
+        + '<button class="dshape-icon-btn" onclick="cancelEditShapeName(\'' + safeId + '\')" title="Cancel"><i class="fa-solid fa-xmark"></i></button>'
+        + '</div>';
+    }
+    return '<div class="dshape-item">'
+      + '<div class="dshape-dot" style="background:' + s.color + '"></div>'
+      + '<span class="dshape-name" title="' + safeName + '">' + safeName + '</span>'
+      + '<button class="dshape-icon-btn' + eyeClass + '" onclick="toggleShapeVisible(\'' + safeId + '\')" title="Show/hide"><i class="fa-solid ' + eyeIcon + '"></i></button>'
+      + '<button class="dshape-icon-btn" onclick="startEditShapeName(\'' + safeId + '\')" title="Rename"><i class="fa-solid fa-pen"></i></button>'
+      + '<button class="dshape-icon-btn danger" onclick="deleteDrawShape(\'' + safeId + '\')" title="Delete"><i class="fa-solid fa-trash"></i></button>'
+      + '</div>';
+  }).join('');
+}
+
+function deleteDrawShape(id) {
+  const idx = drawnShapes.findIndex(function(s) { return s.id === id; });
+  if (idx < 0) return;
+  const s = drawnShapes[idx];
+  s.layers.forEach(function(l) { map.removeLayer(l); });
+  if (s.label) { map.removeLayer(s.label); }
+  drawnShapes.splice(idx, 1);
+  renderShapeList();
+}
+
+function toggleShapeVisible(id) {
+  const s = drawnShapes.find(function(s) { return s.id === id; });
+  if (!s) return;
+  s.visible = !s.visible;
+  s.layers.forEach(function(l) {
+    if (s.visible) { if (!map.hasLayer(l)) map.addLayer(l); }
+    else { if (map.hasLayer(l)) map.removeLayer(l); }
+  });
+  if (s.label) {
+    if (s.visible && showLabels) { if (!map.hasLayer(s.label)) map.addLayer(s.label); }
+    else { if (map.hasLayer(s.label)) map.removeLayer(s.label); }
+  }
+  renderShapeList();
+}
+
+function startEditShapeName(id) {
+  drawnShapes.forEach(function(s) { s.editing = (s.id === id); });
+  renderShapeList();
+  const inp = document.getElementById('dshape-input-' + id);
+  if (inp) { inp.focus(); inp.select(); }
+}
+
+function saveShapeName(id) {
+  const s = drawnShapes.find(function(s) { return s.id === id; });
+  if (!s) return;
+  const inp = document.getElementById('dshape-input-' + id);
+  if (inp) { const v = inp.value.trim(); if (v) s.name = v; }
+  s.editing = false;
+  if (showLabels) updateShapeLabel(s);
+  renderShapeList();
+}
+
+function cancelEditShapeName(id) {
+  const s = drawnShapes.find(function(s) { return s.id === id; });
+  if (s) s.editing = false;
+  renderShapeList();
+}
+
+function toggleLabels() {
+  showLabels = !showLabels;
+  const btn = document.getElementById('draw-labels-btn');
+  if (btn) btn.classList.toggle('active', showLabels);
+  drawnShapes.forEach(function(s) {
+    if (showLabels) {
+      updateShapeLabel(s);
+    } else {
+      if (s.label) { map.removeLayer(s.label); s.label = null; }
+    }
+  });
+}
+
+function shapeCenter(s) {
+  try {
+    if (s.type === 'circle') return s.mainLayer.getLatLng();
+    return s.mainLayer.getBounds().getCenter();
+  } catch(e) { return null; }
+}
+
+function updateShapeLabel(s) {
+  if (s.label) { map.removeLayer(s.label); s.label = null; }
+  const center = shapeCenter(s);
+  if (!center) return;
+  s.label = L.marker(center, {
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="draw-label" style="color:' + s.color + '">' +
+            s.name.replace(/&/g,'&amp;').replace(/</g,'&lt;') + '</div>',
+      iconSize: null,
+      iconAnchor: [0, 0],
+    }),
+    interactive: false,
+    zIndexOffset: -100,
+  });
+  if (s.visible) s.label.addTo(map);
+}
 
 function handleCircleClick(latlng) {
   if (!draw.circleCenter) {
@@ -1114,9 +1296,10 @@ function handleCircleClick(latlng) {
     setDrawBanner('Move mouse to set radius, then click to confirm.');
     updateToolbarButtons();
   } else {
-    const r = haversine(draw.circleCenter, latlng);
-    if (draw.preview) { drawnShapes.push(draw.preview); draw.preview = null; }
-    draw.markers.forEach(m => drawnShapes.push(m));
+    if (draw.preview) {
+      addManagedShape('circle', draw.preview, [...draw.markers], DRAW_COLOR);
+      draw.preview = null;
+    }
     draw.markers = [];
     draw.circleCenter = null;
     if (draw.previewLine) { map.removeLayer(draw.previewLine); draw.previewLine = null; }
