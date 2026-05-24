@@ -66,6 +66,85 @@
     }
     .icon-btn:hover { color: var(--accent); background: var(--accent-faint); border-color: var(--accent-mid); }
 
+    /* ── Burger settings rows ── */
+    .burger-setting {
+      padding: 7px 14px; display: flex; flex-direction: column; gap: 5px;
+    }
+    .burger-setting-label {
+      font-size: 0.68rem; color: var(--accent-muted); letter-spacing: 0.08em;
+      text-transform: uppercase; display: flex; align-items: center; gap: 7px;
+    }
+    .burger-setting-label i { width: 13px; text-align: center; }
+    .burger-zoom-row {
+      display: flex; align-items: center; gap: 6px;
+    }
+    .zoom-step-btn {
+      background: var(--bg3); border: 1px solid var(--border); color: var(--text-muted);
+      border-radius: 5px; width: 22px; height: 22px; cursor: pointer; font-size: 0.85rem;
+      display: flex; align-items: center; justify-content: center; flex-shrink: 0;
+      transition: all 0.12s;
+    }
+    .zoom-step-btn:hover { color: var(--accent); border-color: var(--accent-mid); }
+    #ui-zoom-slider {
+      flex: 1; accent-color: var(--accent); height: 3px; cursor: pointer;
+    }
+    #ui-zoom-display {
+      font-size: 0.72rem; color: var(--text-muted); min-width: 34px; text-align: right;
+      font-variant-numeric: tabular-nums;
+    }
+    .accent-swatch-row { display: flex; align-items: center; gap: 8px; }
+    #accent-swatch {
+      width: 32px; height: 22px; border-radius: 5px; background: var(--accent);
+      border: 1px solid var(--border); cursor: pointer; flex-shrink: 0;
+      transition: border-color 0.15s;
+    }
+    #accent-swatch:hover { border-color: var(--accent); }
+    .burger-small-btn {
+      font-size: 0.68rem; padding: 3px 9px; border-radius: 5px; cursor: pointer;
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      transition: all 0.12s;
+    }
+    .burger-small-btn:hover { color: var(--text); border-color: var(--accent-mid); }
+
+    /* ── Accent picker overlay ── */
+    #accent-picker-overlay {
+      display: none; position: fixed; inset: 0; z-index: 3000;
+      background: rgba(0,0,0,0.45);
+    }
+    #accent-picker-overlay.show { display: flex; align-items: center; justify-content: center; }
+    #accent-picker-modal {
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 10px;
+      padding: 16px; min-width: 240px;
+    }
+    #accent-picker-modal h3 {
+      font-size: 0.72rem; letter-spacing: 0.1em; text-transform: uppercase;
+      color: var(--accent-muted); margin-bottom: 12px;
+    }
+    .accent-preset-grid {
+      display: grid; grid-template-columns: repeat(7, 1fr); gap: 6px; margin-bottom: 12px;
+    }
+    .accent-preset {
+      width: 28px; height: 28px; border-radius: 5px; cursor: pointer;
+      border: 2px solid transparent; transition: border-color 0.12s, transform 0.1s;
+    }
+    .accent-preset:hover { transform: scale(1.15); }
+    .accent-preset.selected { border-color: #fff; }
+    .accent-custom-row {
+      display: flex; align-items: center; gap: 8px; margin-bottom: 12px;
+    }
+    .accent-custom-row label { font-size: 0.72rem; color: var(--text-muted); }
+    #accent-custom-input { width: 36px; height: 28px; border-radius: 5px; border: none; cursor: pointer; padding: 0; }
+    .accent-picker-btns { display: flex; gap: 8px; justify-content: flex-end; }
+    .accent-picker-btns button {
+      font-size: 0.74rem; padding: 5px 14px; border-radius: 6px; cursor: pointer;
+      border: 1px solid var(--border); background: none; color: var(--text-muted);
+      transition: all 0.12s;
+    }
+    .accent-picker-btns button.primary {
+      background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent);
+    }
+    .accent-picker-btns button:hover { color: var(--text); border-color: var(--accent-mid); }
+
     /* ── Draw panel ── */
     #draw-panel {
       display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 130px;
@@ -396,6 +475,23 @@
     <button class="burger-item danger" onclick="killApp()">
       <i class="fa-solid fa-power-off"></i> Stop App
     </button>
+    <hr class="burger-sep">
+    <div class="burger-setting">
+      <div class="burger-setting-label"><i class="fa-solid fa-magnifying-glass"></i> UI Zoom</div>
+      <div class="burger-zoom-row">
+        <button class="zoom-step-btn" onclick="setUiZoom(getUiZoom()-5)">−</button>
+        <input type="range" id="ui-zoom-slider" min="70" max="150" step="5" value="100" oninput="setUiZoom(this.value)">
+        <button class="zoom-step-btn" onclick="setUiZoom(getUiZoom()+5)">+</button>
+        <span id="ui-zoom-display">100%</span>
+      </div>
+    </div>
+    <div class="burger-setting">
+      <div class="burger-setting-label"><i class="fa-solid fa-palette"></i> Accent Colour</div>
+      <div class="accent-swatch-row">
+        <div id="accent-swatch" onclick="openAccentPicker()" title="Choose accent colour"></div>
+        <button class="burger-small-btn" onclick="resetAccentColor()">Reset</button>
+      </div>
+    </div>
   </div>
   <div id="layers-panel">
     <div class="layers-group-label">Base</div>
@@ -1037,6 +1133,132 @@ function toggleDrawPanel() {
   if (!wasOpen) p.classList.add('open');
 }
 
+
+// ===== UI ZOOM =====
+const SONDE_DEFAULT_ACCENT = '#deaf4a';
+
+function getUiZoom() {
+  return parseInt(document.getElementById('ui-zoom-slider').value) || 100;
+}
+function setUiZoom(val) {
+  val = Math.min(150, Math.max(70, parseInt(val) || 100));
+  document.body.style.zoom = val + '%';
+  document.body.style.height = (10000 / val).toFixed(2) + 'vh';
+  const slider = document.getElementById('ui-zoom-slider');
+  if (slider) slider.value = val;
+  const display = document.getElementById('ui-zoom-display');
+  if (display) display.textContent = val + '%';
+  localStorage.setItem('sondeUiZoom', val);
+}
+function loadUiZoom() {
+  const saved = parseInt(localStorage.getItem('sondeUiZoom'));
+  if (saved) setUiZoom(saved);
+}
+
+// ===== ACCENT COLOUR =====
+function _hexToHsl(hex) {
+  const r = parseInt(hex.slice(1,3),16)/255, g = parseInt(hex.slice(3,5),16)/255, b = parseInt(hex.slice(5,7),16)/255;
+  const max = Math.max(r,g,b), min = Math.min(r,g,b);
+  let h=0, s=0, l=(max+min)/2;
+  if (max !== min) {
+    const d = max - min;
+    s = l > 0.5 ? d/(2-max-min) : d/(max+min);
+    switch(max) {
+      case r: h=((g-b)/d+(g<b?6:0))/6; break;
+      case g: h=((b-r)/d+2)/6; break;
+      case b: h=((r-g)/d+4)/6; break;
+    }
+  }
+  return [Math.round(h*360), Math.round(s*100), Math.round(l*100)];
+}
+function _hslToHex(h, s, l) {
+  s/=100; l/=100;
+  const a = s*Math.min(l,1-l);
+  const f = n => { const k=(n+h/30)%12, c=l-a*Math.max(Math.min(k-3,9-k,1),-1); return Math.round(255*c).toString(16).padStart(2,'0'); };
+  return `#${f(0)}${f(8)}${f(4)}`;
+}
+function _hexToRgb(hex) {
+  return [parseInt(hex.slice(1,3),16), parseInt(hex.slice(3,5),16), parseInt(hex.slice(5,7),16)];
+}
+
+function applyAccentColor(hex) {
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+  const [h, s, l] = _hexToHsl(hex);
+  const accentL   = Math.max(l, 45);
+  const accentHex = _hslToHex(h, s, accentL);
+  const [r, g, b] = _hexToRgb(accentHex);
+  document.documentElement.style.setProperty('--accent',        accentHex);
+  document.documentElement.style.setProperty('--accent-faint',  `rgba(${r},${g},${b},0.10)`);
+  document.documentElement.style.setProperty('--accent-mid',    `rgba(${r},${g},${b},0.30)`);
+  document.documentElement.style.setProperty('--accent-bg',     `rgba(${r},${g},${b},0.07)`);
+  document.documentElement.style.setProperty('--accent-muted',  _hslToHex(h, Math.round(s*0.6), Math.round(accentL*0.65)));
+  // update swatch
+  const sw = document.getElementById('accent-swatch');
+  if (sw) sw.style.background = accentHex;
+}
+
+function loadAccentColor() {
+  const saved = localStorage.getItem('sondeAccentColor');
+  if (saved) applyAccentColor(saved);
+}
+
+// Accent picker state
+let _pendingAccent = null;
+const ACCENT_PRESETS = [
+  '#deaf4a','#f59e0b','#fb923c','#f87171',
+  '#e879f9','#a78bfa','#60a5fa','#34d399',
+  '#4ade80','#a3e635','#facc15','#94a3b8',
+  '#e2e8f0','#f8fafc',
+];
+
+function openAccentPicker() {
+  closeBurger();
+  _pendingAccent = getComputedStyle(document.documentElement).getPropertyValue('--accent').trim();
+  // render presets
+  const grid = document.getElementById('accent-preset-grid');
+  grid.innerHTML = ACCENT_PRESETS.map(c =>
+    `<div class="accent-preset${c.toLowerCase()===_pendingAccent.toLowerCase()?' selected':''}"
+       style="background:${c}" title="${c}"
+       onclick="selectAccentPreset('${c}')"></div>`
+  ).join('');
+  const input = document.getElementById('accent-custom-input');
+  input.value = _pendingAccent;
+  document.getElementById('accent-hex-display').textContent = _pendingAccent;
+  document.getElementById('accent-picker-overlay').classList.add('show');
+}
+function closeAccentPicker() {
+  if (_pendingAccent) {
+    applyAccentColor(_pendingAccent); // revert preview
+    _pendingAccent = null;
+  }
+  document.getElementById('accent-picker-overlay').classList.remove('show');
+}
+function selectAccentPreset(hex) {
+  document.querySelectorAll('.accent-preset').forEach(p => p.classList.remove('selected'));
+  event.target.classList.add('selected');
+  document.getElementById('accent-custom-input').value = hex;
+  document.getElementById('accent-hex-display').textContent = hex;
+  applyAccentColor(hex); // live preview
+}
+function previewAccent(hex) {
+  document.getElementById('accent-hex-display').textContent = hex;
+  if (/^#[0-9a-fA-F]{6}$/.test(hex)) applyAccentColor(hex);
+}
+function confirmAccentColor() {
+  const hex = document.getElementById('accent-custom-input').value;
+  if (!/^#[0-9a-fA-F]{6}$/.test(hex)) return;
+  applyAccentColor(hex);
+  localStorage.setItem('sondeAccentColor', hex);
+  _pendingAccent = null;
+  document.getElementById('accent-picker-overlay').classList.remove('show');
+}
+function resetAccentColor() {
+  applyAccentColor(SONDE_DEFAULT_ACCENT);
+  localStorage.removeItem('sondeAccentColor');
+  const sw = document.getElementById('accent-swatch');
+  if (sw) sw.style.background = SONDE_DEFAULT_ACCENT;
+}
+
 // ===== SCAN / RELEASE =====
 let scanning = false;
 
@@ -1213,7 +1435,25 @@ async function upgradeApp() {
 loadPresets();
   loadVersion();
   initDrawEvents();
+  loadUiZoom();
+  loadAccentColor();
 connectAutoRx();
 </script>
+<!-- Accent colour picker -->
+<div id="accent-picker-overlay" onclick="closeAccentPicker()">
+  <div id="accent-picker-modal" onclick="event.stopPropagation()">
+    <h3>Accent Colour</h3>
+    <div class="accent-preset-grid" id="accent-preset-grid"></div>
+    <div class="accent-custom-row">
+      <label>Custom:</label>
+      <input type="color" id="accent-custom-input" oninput="previewAccent(this.value)">
+      <span style="font-size:0.72rem;color:var(--text-muted)" id="accent-hex-display">#deaf4a</span>
+    </div>
+    <div class="accent-picker-btns">
+      <button onclick="closeAccentPicker()">Cancel</button>
+      <button class="primary" onclick="confirmAccentColor()">Apply</button>
+    </div>
+  </div>
+</div>
 </body>
 </html>
