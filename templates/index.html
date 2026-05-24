@@ -270,8 +270,10 @@
       text-shadow: 0 0 4px #000a, 0 0 2px #000;
     }
 
-    /* Crosshair cursor during drawing */
+    /* Crosshair cursor during drawing — disable all layer pointer events so
+       hovering over shapes/markers doesn't steal the cursor or eat clicks */
     #map.draw-active { cursor: crosshair !important; }
+    #map.draw-active .leaflet-interactive { pointer-events: none !important; cursor: crosshair !important; }
 
     /* ── Burger menu ── */
 
