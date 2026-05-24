@@ -78,5 +78,29 @@ def upgrade():
     threading.Thread(target=restart, daemon=True).start()
     return jsonify({'ok': True, 'msg': msg})
 
+@app.route('/api/version')
+def get_version():
+    import subprocess as sp
+    result = sp.run(['git', 'rev-parse', '--short', 'HEAD'],
+                    cwd=os.path.dirname(os.path.abspath(__file__)),
+                    capture_output=True, text=True)
+    return jsonify({'version': result.stdout.strip() or 'unknown'})
+
+@app.route('/api/restart', methods=['POST'])
+def restart_app():
+    def do_restart():
+        import time; time.sleep(1)
+        subprocess.run(['systemctl', '--user', 'restart', 'sonde.service'], capture_output=True)
+    threading.Thread(target=do_restart, daemon=True).start()
+    return jsonify({'ok': True})
+
+@app.route('/api/kill', methods=['POST'])
+def kill_app():
+    def do_stop():
+        import time; time.sleep(1)
+        subprocess.run(['systemctl', '--user', 'stop', 'sonde.service'], capture_output=True)
+    threading.Thread(target=do_stop, daemon=True).start()
+    return jsonify({'ok': True})
+
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5100, debug=False)

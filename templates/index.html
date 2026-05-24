@@ -66,14 +66,51 @@
     }
     .icon-btn:hover { color: var(--accent); background: var(--accent-faint); border-color: var(--accent-mid); }
 
-    #layer-btns { display: flex; gap: 4px; }
-    .layer-btn {
-      font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
-      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
-      background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+    /* ── Burger menu ── */
+    #burger-btn { position: relative; }
+    #burger-panel {
+      display: none; position: absolute; top: calc(var(--header-h) + 6px); left: 10px;
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
+      padding: 10px 0; flex-direction: column; z-index: 2000; min-width: 210px;
     }
-    .layer-btn:hover { color: var(--text); border-color: var(--accent-mid); }
-    .layer-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    #burger-panel.open { display: flex; }
+    .burger-version {
+      font-size: 0.68rem; color: var(--text-muted); letter-spacing: 0.08em;
+      padding: 2px 14px 8px; border-bottom: 1px solid var(--border); margin-bottom: 4px;
+    }
+    .burger-version span { color: var(--accent); font-variant-numeric: tabular-nums; }
+    .burger-item {
+      display: flex; align-items: center; gap: 9px;
+      padding: 8px 14px; font-size: 0.78rem; color: var(--text-muted);
+      cursor: pointer; background: none; border: none; width: 100%; text-align: left;
+      transition: background 0.12s, color 0.12s;
+    }
+    .burger-item:hover { background: var(--accent-faint); color: var(--text); }
+    .burger-item i { width: 14px; text-align: center; color: var(--accent-muted); }
+    .burger-item.danger:hover { background: rgba(255,80,80,0.08); color: var(--red); }
+    .burger-item.danger:hover i { color: var(--red); }
+    .burger-sep { border: none; border-top: 1px solid var(--border); margin: 4px 0; }
+
+    /* ── Layers panel ── */
+    #layers-panel {
+      display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 10px;
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
+      padding: 10px 12px; flex-direction: column; gap: 4px; z-index: 2000; min-width: 200px;
+    }
+    #layers-panel.open { display: flex; }
+    .layers-group-label {
+      font-size: 0.62rem; color: var(--accent-muted); letter-spacing: 0.1em;
+      text-transform: uppercase; margin: 6px 0 3px;
+    }
+    .layers-group-label:first-child { margin-top: 0; }
+    .layer-opt {
+      display: flex; align-items: center; gap: 8px; padding: 5px 8px; border-radius: 5px;
+      cursor: pointer; font-size: 0.78rem; color: var(--text-muted);
+      background: none; border: 1px solid transparent; transition: all 0.12s; text-align: left;
+    }
+    .layer-opt:hover { background: var(--accent-faint); color: var(--text); border-color: var(--border); }
+    .layer-opt.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    .layer-opt i { width: 13px; text-align: center; font-size: 0.72rem; }
 
     /* Local tileset picker */
     #local-panel {
@@ -231,6 +268,27 @@
 <body>
 
 <div id="header">
+  <!-- Burger menu -->
+  <button class="icon-btn" id="burger-btn" onclick="toggleBurger()" title="Menu">
+    <i class="fa-solid fa-bars"></i>
+  </button>
+  <div id="burger-panel">
+    <div class="burger-version">Build: <span id="build-hash">—</span></div>
+    <button class="burger-item" onclick="upgradeApp();closeBurger()">
+      <i class="fa-solid fa-arrow-up-from-bracket"></i> Check &amp; Update
+    </button>
+    <button class="burger-item" onclick="toggleKeyPanel();closeBurger()">
+      <i class="fa-solid fa-key"></i> MapTiler API Key
+    </button>
+    <hr class="burger-sep">
+    <button class="burger-item" onclick="restartApp()">
+      <i class="fa-solid fa-rotate-right"></i> Restart App
+    </button>
+    <button class="burger-item danger" onclick="killApp()">
+      <i class="fa-solid fa-power-off"></i> Stop App
+    </button>
+  </div>
+
   <h1><i class="fa-solid fa-satellite-dish"></i>Sonde App</h1>
   <div id="conn-status">
     <div id="conn-dot"></div>
@@ -243,14 +301,22 @@
   <button class="header-btn danger" onclick="releaseRTL()">
     <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
   </button>
-  <button class="icon-btn" onclick="upgradeApp()" title="Update from GitHub"><i class="fa-solid fa-arrow-up-from-bracket"></i></button>
-  <button class="icon-btn" onclick="toggleKeyPanel()" title="MapTiler API key"><i class="fa-solid fa-key"></i></button>
-  <div id="layer-btns">
-    <button class="layer-btn active" onclick="setLayer('osm')">OSM</button>
-    <button class="layer-btn" onclick="setLayer('topo')">Topo</button>
-    <button class="layer-btn" onclick="setLayer('mt')">MT Topo</button>
-    <button class="layer-btn" onclick="setLayer('sat')">Sat</button>
-    <button class="layer-btn" id="local-btn" onclick="openLocalPanel()">Local</button>
+
+  <!-- Layers button -->
+  <button class="icon-btn" id="layers-btn" onclick="toggleLayersPanel()" title="Map layers">
+    <i class="fa-solid fa-layer-group"></i> Layers
+  </button>
+  <div id="layers-panel">
+    <div class="layers-group-label">Base</div>
+    <button class="layer-opt active" id="lopt-osm" onclick="setLayer('osm')"><i class="fa-solid fa-map"></i> OpenStreetMap</button>
+    <button class="layer-opt" id="lopt-topo" onclick="setLayer('topo')"><i class="fa-solid fa-mountain"></i> OpenTopoMap</button>
+    <button class="layer-opt" id="lopt-sat" onclick="setLayer('sat')"><i class="fa-solid fa-satellite"></i> ESRI Satellite</button>
+    <div class="layers-group-label">MapTiler <span style="font-size:0.58rem;color:var(--text-muted)">(API key required)</span></div>
+    <button class="layer-opt" id="lopt-mt" onclick="setLayer('mt')"><i class="fa-solid fa-map"></i> MT Topo</button>
+    <button class="layer-opt" id="lopt-mt-sat" onclick="setLayer('mt-sat')"><i class="fa-solid fa-satellite"></i> MT Satellite</button>
+    <button class="layer-opt" id="lopt-mt-streets" onclick="setLayer('mt-streets')"><i class="fa-solid fa-road"></i> MT Streets</button>
+    <div class="layers-group-label">Local (offline)</div>
+    <button class="layer-opt" id="lopt-local" onclick="openLocalPanel()"><i class="fa-solid fa-hard-drive"></i> <span id="local-layer-label">Local tiles...</span></button>
   </div>
 </div>
 
@@ -329,31 +395,42 @@ function getMtLayer() {
 function setLayer(name) {
   if (name === currentLayer) return;
 
-  if (name === 'mt' && !localStorage.getItem('mt_key')) {
+  const isMt = name === 'mt' || name === 'mt-sat' || name === 'mt-streets';
+  if (isMt && !localStorage.getItem('mt_key')) {
     toggleKeyPanel();
     return;
   }
 
+  // Remove current layer
   if (currentLayer === 'local' && localLayer) {
     map.removeLayer(localLayer); localLayer = null;
-  } else if (currentLayer === 'mt' && mtLayer) {
+  } else if ((currentLayer === 'mt' || currentLayer === 'mt-sat' || currentLayer === 'mt-streets') && mtLayer) {
     map.removeLayer(mtLayer); mtLayer = null;
-  } else {
+  } else if (layers[currentLayer]) {
     map.removeLayer(layers[currentLayer]);
   }
 
-  if (name === 'mt') {
-    mtLayer = getMtLayer();
+  // Add new layer
+  if (isMt) {
+    const key = localStorage.getItem('mt_key') || '';
+    const urls = {
+      'mt':         'https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + key,
+      'mt-sat':     'https://api.maptiler.com/maps/satellite-hybrid/{z}/{x}/{y}.jpg?key=' + key,
+      'mt-streets': 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + key,
+    };
+    mtLayer = L.tileLayer(urls[name], { attribution: '© MapTiler © OpenStreetMap', maxZoom: 20 });
     mtLayer.addTo(map);
-  } else {
+  } else if (layers[name]) {
     layers[name].addTo(map);
   }
 
   currentLayer = name;
-  document.querySelectorAll('.layer-btn').forEach(b => {
-    const n = b.textContent.trim().toLowerCase().replace(/\s+/g, '');
-    b.classList.toggle('active', n === name || (name === 'mt' && n === 'mttopo'));
-  });
+
+  // Update layers panel active state
+  document.querySelectorAll('.layer-opt').forEach(b => b.classList.remove('active'));
+  const loptId = 'lopt-' + name;
+  const activeOpt = document.getElementById(loptId);
+  if (activeOpt) activeOpt.classList.add('active');
 }
 
 // ===== LOCAL TILE SERVER =====
@@ -396,6 +473,9 @@ function setLocalLayer(id, name) {
   });
   localLayer.addTo(map);
   currentLayer = 'local';
+  document.querySelectorAll('.layer-opt').forEach(b => b.classList.remove('active'));
+  const lo = document.getElementById('lopt-local');
+  if (lo) lo.classList.add('active');
 
   document.querySelectorAll('.layer-btn').forEach(function(b) {
     b.classList.toggle('active', b.id === 'local-btn');
@@ -559,6 +639,65 @@ function exportGPX(id) {
   a.download = id + '.gpx';
   a.click();
   URL.revokeObjectURL(a.href);
+}
+
+
+// ===== BURGER MENU =====
+function toggleBurger() {
+  const p = document.getElementById('burger-panel');
+  const wasOpen = p.classList.contains('open');
+  closeAllPanels();
+  if (!wasOpen) p.classList.add('open');
+}
+function closeBurger() {
+  document.getElementById('burger-panel').classList.remove('open');
+}
+
+// ===== LAYERS PANEL =====
+function toggleLayersPanel() {
+  const p = document.getElementById('layers-panel');
+  const wasOpen = p.classList.contains('open');
+  closeAllPanels();
+  if (!wasOpen) p.classList.add('open');
+}
+
+function closeAllPanels() {
+  document.getElementById('burger-panel').classList.remove('open');
+  document.getElementById('layers-panel').classList.remove('open');
+  const lp = document.getElementById('local-panel');
+  if (lp) lp.style.display = 'none';
+  const kp = document.getElementById('key-panel');
+  if (kp) kp.style.display = 'none';
+}
+
+// close panels on outside click
+document.addEventListener('click', function(e) {
+  if (!e.target.closest('#burger-btn') && !e.target.closest('#burger-panel')) closeBurger();
+  if (!e.target.closest('#layers-btn') && !e.target.closest('#layers-panel') && !e.target.closest('#local-panel')) {
+    document.getElementById('layers-panel').classList.remove('open');
+  }
+});
+
+// ===== VERSION =====
+async function loadVersion() {
+  try {
+    const r = await fetch('/api/version');
+    const d = await r.json();
+    document.getElementById('build-hash').textContent = d.version;
+  } catch(e) {}
+}
+
+// ===== RESTART / KILL =====
+async function restartApp() {
+  closeBurger();
+  showToast('Restarting...');
+  await fetch('/api/restart', { method: 'POST' });
+}
+async function killApp() {
+  closeBurger();
+  const ok = confirm('Stop the Sonde App service?');
+  if (!ok) return;
+  await fetch('/api/kill', { method: 'POST' });
 }
 
 // ===== SCAN / RELEASE =====
@@ -735,6 +874,7 @@ async function upgradeApp() {
 }
 
 loadPresets();
+  loadVersion();
 connectAutoRx();
 </script>
 </body>
