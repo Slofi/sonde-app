@@ -207,6 +207,16 @@
     .tb-btn:hover { color: var(--text); border-color: var(--accent-mid); }
     .tb-btn.finish { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
     .tb-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
+    #tb-name-input {
+      display: none; background: rgba(255,255,255,0.07); border: 1px solid var(--accent-mid);
+      border-radius: 4px; color: var(--text); font-size: 0.75rem; font-weight: 600;
+      padding: 2px 8px; outline: none; width: 130px;
+    }
+    #tb-name-input:focus { border-color: var(--accent); }
+    .draw-edit-handle {
+      width: 14px; height: 14px; border-radius: 50%; border: 2px solid #fff;
+      box-shadow: 0 0 4px #000a; cursor: grab; box-sizing: border-box;
+    }
 
     /* Banner */
     #draw-banner {
@@ -561,6 +571,7 @@
 <div id="draw-toolbar">
   <span id="draw-toolbar-icon"><i class="fa-solid fa-pencil"></i></span>
   <span id="draw-toolbar-label">Draw</span>
+  <input id="tb-name-input" type="text" placeholder="Shape name">
   <span id="draw-toolbar-info"></span>
   <div class="tb-sep"></div>
   <div class="tb-color-swatch selected" style="background:#ffcc33" title="Yellow"  onclick="setDrawColor('#ffcc33',this)"></div>
@@ -571,8 +582,8 @@
   <input type="color" id="tb-custom-color" title="Custom colour" value="#ffcc33" oninput="setDrawColor(this.value,null)">
   <div class="tb-sep"></div>
   <button class="tb-btn" id="tb-undo-btn"   onclick="undoDrawPoint()"><i class="fa-solid fa-rotate-left"></i> Undo</button>
-  <button class="tb-btn finish" id="tb-finish-btn" onclick="finishDrawTool()"><i class="fa-solid fa-check"></i> Finish</button>
-  <button class="tb-btn danger" id="tb-cancel-btn" onclick="clearDrawTool()"><i class="fa-solid fa-xmark"></i> Cancel</button>
+  <button class="tb-btn finish" id="tb-finish-btn" onclick="tbFinish()"><i class="fa-solid fa-check"></i> Finish</button>
+  <button class="tb-btn danger" id="tb-cancel-btn" onclick="tbCancel()"><i class="fa-solid fa-xmark"></i> Cancel</button>
 </div>
 
 <div id="local-panel">
@@ -976,6 +987,28 @@ function setDrawColor(hex, swatchEl) {
   document.getElementById('tb-custom-color').value = hex;
   document.querySelectorAll('.tb-color-swatch').forEach(s => s.classList.remove('selected'));
   if (swatchEl) swatchEl.classList.add('selected');
+  // Live-recolor the shape being edited
+  if (editState) {
+    const s = drawnShapes.find(function(s) { return s.id === editState.shapeId; });
+    if (s) {
+      if (s.mainLayer.setStyle) s.mainLayer.setStyle({ color: hex, fillColor: hex });
+      editState.handles.forEach(function(h) {
+        h.setIcon(L.divIcon({
+          className: '',
+          html: '<div class="draw-edit-handle" style="background:' + hex + '"></div>',
+          iconSize: [14, 14], iconAnchor: [7, 7],
+        }));
+      });
+    }
+  }
+}
+
+// Toolbar Finish/Cancel — context-aware (drawing tool OR shape edit)
+function tbFinish() {
+  if (editState) { finishEditShape(); } else { finishDrawTool(); }
+}
+function tbCancel() {
+  if (editState) { cancelEditShape(); } else { clearDrawTool(); }
 }
 
 function fmtDist(m) {
@@ -1045,6 +1078,7 @@ function clearDrawTool() {
 }
 
 function startDrawTool(tool) {
+  if (editState) cancelEditShape();
   clearDrawTool();
   draw.tool = tool;
   document.getElementById('map').classList.add('draw-active');
@@ -1180,20 +1214,11 @@ function renderShapeList() {
     const safeName = s.name.replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/"/g,'&quot;');
     const eyeIcon = s.visible ? 'fa-eye' : 'fa-eye-slash';
     const eyeClass = s.visible ? '' : ' eye-off';
-    if (s.editing) {
-      return '<div class="dshape-item">'
-        + '<div class="dshape-dot" style="background:' + s.color + '"></div>'
-        + '<input class="dshape-name-input" id="dshape-input-' + safeId + '" value="' + safeName + '"'
-        + ' onkeydown="if(event.key===\'Enter\')saveShapeName(\'' + safeId + '\');else if(event.key===\'Escape\')cancelEditShapeName(\'' + safeId + '\')">'
-        + '<button class="dshape-icon-btn" onclick="saveShapeName(\'' + safeId + '\')" title="Save"><i class="fa-solid fa-check"></i></button>'
-        + '<button class="dshape-icon-btn" onclick="cancelEditShapeName(\'' + safeId + '\')" title="Cancel"><i class="fa-solid fa-xmark"></i></button>'
-        + '</div>';
-    }
     return '<div class="dshape-item">'
       + '<div class="dshape-dot" style="background:' + s.color + '"></div>'
       + '<span class="dshape-name" title="' + safeName + '">' + safeName + '</span>'
       + '<button class="dshape-icon-btn' + eyeClass + '" onclick="toggleShapeVisible(\'' + safeId + '\')" title="Show/hide"><i class="fa-solid ' + eyeIcon + '"></i></button>'
-      + '<button class="dshape-icon-btn" onclick="startEditShapeName(\'' + safeId + '\')" title="Rename"><i class="fa-solid fa-pen"></i></button>'
+      + '<button class="dshape-icon-btn" onclick="startEditShape(\'' + safeId + '\')" title="Edit shape"><i class="fa-solid fa-pen-to-square"></i></button>'
       + '<button class="dshape-icon-btn danger" onclick="deleteDrawShape(\'' + safeId + '\')" title="Delete"><i class="fa-solid fa-trash"></i></button>'
       + '</div>';
   }).join('');
@@ -1224,27 +1249,168 @@ function toggleShapeVisible(id) {
   renderShapeList();
 }
 
-function startEditShapeName(id) {
-  drawnShapes.forEach(function(s) { s.editing = (s.id === id); });
-  renderShapeList();
-  const inp = document.getElementById('dshape-input-' + id);
-  if (inp) { inp.focus(); inp.select(); }
+// ── Shape edit mode ──
+let editState = null;  // { shapeId, handles, dotLayers, originalData }
+
+function createEditHandle(latlng, color) {
+  return L.marker(latlng, {
+    draggable: true,
+    icon: L.divIcon({
+      className: '',
+      html: '<div class="draw-edit-handle" style="background:' + color + '"></div>',
+      iconSize: [14, 14],
+      iconAnchor: [7, 7],
+    }),
+    zIndexOffset: 500,
+  }).addTo(map);
 }
 
-function saveShapeName(id) {
-  const s = drawnShapes.find(function(s) { return s.id === id; });
-  if (!s) return;
-  const inp = document.getElementById('dshape-input-' + id);
-  if (inp) { const v = inp.value.trim(); if (v) s.name = v; }
-  s.editing = false;
-  if (showLabels) updateShapeLabel(s);
-  renderShapeList();
+function computeEdgePoint(center, radiusM) {
+  const dLng = (radiusM / (111320 * Math.cos(center.lat * Math.PI / 180)));
+  return L.latLng(center.lat, center.lng + dLng);
 }
 
-function cancelEditShapeName(id) {
+function startEditShape(id) {
+  if (draw.tool) clearDrawTool();
+  if (editState) cancelEditShape();
   const s = drawnShapes.find(function(s) { return s.id === id; });
-  if (s) s.editing = false;
-  renderShapeList();
+  if (!s || !s.visible) return;
+
+  document.getElementById('draw-panel').classList.remove('open');
+
+  // Pull out dot layers (everything except mainLayer)
+  const dotLayers = s.layers.filter(function(l) { return l !== s.mainLayer; });
+  dotLayers.forEach(function(l) { map.removeLayer(l); });
+
+  let handles = [];
+  let originalData;
+
+  if (s.type === 'circle') {
+    originalData = { center: s.mainLayer.getLatLng(), radius: s.mainLayer.getRadius() };
+    // Center handle
+    const ch = createEditHandle(s.mainLayer.getLatLng(), s.color);
+    // Edge handle (east of center at current radius)
+    const edgeLl = computeEdgePoint(s.mainLayer.getLatLng(), s.mainLayer.getRadius());
+    const eh = createEditHandle(edgeLl, s.color);
+    ch.on('drag', function() {
+      const newCenter = ch.getLatLng();
+      s.mainLayer.setLatLng(newCenter);
+      eh.setLatLng(computeEdgePoint(newCenter, s.mainLayer.getRadius()));
+      document.getElementById('draw-toolbar-info').textContent = 'r: ' + fmtDist(s.mainLayer.getRadius());
+    });
+    eh.on('drag', function() {
+      const r = haversine(ch.getLatLng(), eh.getLatLng());
+      s.mainLayer.setRadius(r);
+      document.getElementById('draw-toolbar-info').textContent = 'r: ' + fmtDist(r);
+    });
+    handles = [ch, eh];
+    document.getElementById('draw-toolbar-info').textContent = 'r: ' + fmtDist(s.mainLayer.getRadius());
+  } else {
+    const lls = s.mainLayer.getLatLngs();
+    const pts = (lls.length && Array.isArray(lls[0])) ? lls[0] : lls;
+    originalData = { pts: pts.map(function(ll) { return L.latLng(ll.lat, ll.lng); }) };
+    handles = pts.map(function(ll, i) {
+      const h = createEditHandle(ll, s.color);
+      h.on('drag', function() {
+        pts[i] = h.getLatLng();
+        s.mainLayer.setLatLngs(pts);
+        if (s.type === 'ruler' && pts.length >= 2) {
+          let total = 0;
+          for (let j = 1; j < pts.length; j++) total += haversine(pts[j-1], pts[j]);
+          document.getElementById('draw-toolbar-info').textContent = fmtDist(total);
+        }
+      });
+      return h;
+    });
+    if (s.type === 'ruler' && pts.length >= 2) {
+      let total = 0;
+      for (let j = 1; j < pts.length; j++) total += haversine(pts[j-1], pts[j]);
+      document.getElementById('draw-toolbar-info').textContent = fmtDist(total);
+    } else {
+      document.getElementById('draw-toolbar-info').textContent = '';
+    }
+  }
+
+  editState = { shapeId: id, handles, dotLayers, originalData };
+
+  // Configure toolbar for edit mode
+  const icon = { ruler: 'fa-ruler', line: 'fa-minus', polygon: 'fa-draw-polygon', circle: 'fa-circle' };
+  document.getElementById('draw-toolbar-icon').innerHTML = '<i class="fa-solid ' + (icon[s.type] || 'fa-pen') + '"></i>';
+  document.getElementById('draw-toolbar-label').style.display = 'none';
+  const nameInput = document.getElementById('tb-name-input');
+  nameInput.value = s.name;
+  nameInput.style.display = '';
+  // Sync color swatches to shape's current color
+  DRAW_COLOR = s.color;
+  document.getElementById('tb-custom-color').value = s.color;
+  document.querySelectorAll('.tb-color-swatch').forEach(function(sw) {
+    sw.classList.toggle('selected', sw.style.background === s.color || sw.title.toLowerCase() === '');
+  });
+  document.getElementById('tb-undo-btn').hidden = true;
+  document.getElementById('tb-finish-btn').hidden = false;
+  document.getElementById('tb-cancel-btn').hidden = false;
+  document.getElementById('draw-toolbar').classList.add('show');
+}
+
+function finishEditShape() {
+  if (!editState) return;
+  const s = drawnShapes.find(function(s) { return s.id === editState.shapeId; });
+  if (s) {
+    const nameInput = document.getElementById('tb-name-input');
+    if (nameInput) { const v = nameInput.value.trim(); if (v) s.name = v; }
+    s.color = DRAW_COLOR;
+    // Remove handles, rebuild static dots
+    editState.handles.forEach(function(h) { map.removeLayer(h); });
+    let newDots = [];
+    if (s.type === 'circle') {
+      newDots = [L.circleMarker(s.mainLayer.getLatLng(), {
+        radius: 6, color: s.color, fillColor: s.color, fillOpacity: 1, weight: 2,
+      }).addTo(map)];
+    } else {
+      const lls = s.mainLayer.getLatLngs();
+      const pts = (lls.length && Array.isArray(lls[0])) ? lls[0] : lls;
+      newDots = pts.map(function(ll) {
+        return L.circleMarker(ll, {
+          radius: 5, color: s.color, fillColor: s.color, fillOpacity: 1, weight: 2,
+        }).addTo(map);
+      });
+    }
+    s.layers = [s.mainLayer, ...newDots];
+    // Recolor main shape
+    if (s.mainLayer.setStyle) s.mainLayer.setStyle({ color: s.color, fillColor: s.color });
+    if (showLabels) updateShapeLabel(s);
+    renderShapeList();
+  }
+  editState = null;
+  closeEditToolbar();
+}
+
+function cancelEditShape() {
+  if (!editState) return;
+  const s = drawnShapes.find(function(s) { return s.id === editState.shapeId; });
+  if (s) {
+    // Restore original geometry
+    if (s.type === 'circle') {
+      s.mainLayer.setLatLng(editState.originalData.center);
+      s.mainLayer.setRadius(editState.originalData.radius);
+    } else {
+      s.mainLayer.setLatLngs(editState.originalData.pts);
+    }
+    // Remove handles, restore original dots
+    editState.handles.forEach(function(h) { map.removeLayer(h); });
+    editState.dotLayers.forEach(function(l) { if (!map.hasLayer(l)) map.addLayer(l); });
+    s.layers = [s.mainLayer, ...editState.dotLayers];
+  }
+  editState = null;
+  closeEditToolbar();
+}
+
+function closeEditToolbar() {
+  document.getElementById('draw-toolbar-label').style.display = '';
+  const nameInput = document.getElementById('tb-name-input');
+  if (nameInput) nameInput.style.display = 'none';
+  document.getElementById('draw-toolbar').classList.remove('show');
+  document.getElementById('draw-toolbar-info').textContent = '';
 }
 
 function toggleLabels() {
@@ -1330,6 +1496,13 @@ function initDrawEvents() {
     }
   });
   document.addEventListener('keydown', function(e) {
+    // Don't intercept keys when typing in an input
+    if (e.target.tagName === 'INPUT') return;
+    if (editState) {
+      if (e.key === 'Escape') cancelEditShape();
+      if (e.key === 'Enter')  finishEditShape();
+      return;
+    }
     if (!draw.tool) return;
     if (e.key === 'Escape')                                          clearDrawTool();
     if ((e.key === 'Backspace' || e.key === 'Delete') && draw.tool !== 'circle') undoDrawPoint();
