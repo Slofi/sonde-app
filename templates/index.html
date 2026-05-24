@@ -66,10 +66,55 @@
     }
     .icon-btn:hover { color: var(--accent); background: var(--accent-faint); border-color: var(--accent-mid); }
 
+    /* ── Draw panel ── */
+    #draw-panel {
+      display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 130px;
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
+      padding: 10px 12px; flex-direction: column; gap: 6px; z-index: 2000; min-width: 170px;
+    }
+    #draw-panel.open { display: flex; }
+    .draw-group-label {
+      font-size: 0.62rem; color: var(--accent-muted); letter-spacing: 0.1em;
+      text-transform: uppercase; margin: 4px 0 2px;
+    }
+    .draw-group-label:first-child { margin-top: 0; }
+    .draw-tool-btn {
+      display: flex; align-items: center; gap: 8px; padding: 6px 8px; border-radius: 5px;
+      cursor: pointer; font-size: 0.78rem; color: var(--text-muted);
+      background: none; border: 1px solid transparent; transition: all 0.12s; text-align: left; width: 100%;
+    }
+    .draw-tool-btn:hover { background: var(--accent-faint); color: var(--text); border-color: var(--border); }
+    .draw-tool-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    .draw-tool-btn i { width: 13px; text-align: center; font-size: 0.72rem; }
+    .draw-sep { border: none; border-top: 1px solid var(--border); margin: 3px 0; }
+    .draw-action-btn {
+      display: flex; align-items: center; gap: 7px; padding: 5px 8px; border-radius: 5px;
+      cursor: pointer; font-size: 0.74rem; font-weight: 500;
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      transition: all 0.12s; text-align: left; width: 100%;
+    }
+    .draw-action-btn:hover { color: var(--text); border-color: var(--accent-mid); }
+    .draw-action-btn.finish { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    .draw-action-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
+    #draw-info { font-size: 0.72rem; color: var(--accent-muted); padding: 2px 4px; min-height: 16px; }
+
+    /* Banner */
+    #draw-banner {
+      position: absolute; top: calc(var(--header-h) + 8px); left: 50%; transform: translateX(-50%);
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 6px;
+      padding: 5px 14px; font-size: 0.74rem; color: var(--text); z-index: 900;
+      pointer-events: none; white-space: nowrap; display: none;
+    }
+    #draw-banner.show { display: block; }
+
+    /* Crosshair cursor during drawing */
+    #map.draw-active { cursor: crosshair !important; }
+
     /* ── Burger menu ── */
+
     #burger-btn { position: relative; }
     #burger-panel {
-      display: none; position: absolute; top: calc(var(--header-h) + 6px); left: 10px;
+      display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 10px;
       background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
       padding: 10px 0; flex-direction: column; z-index: 2000; min-width: 210px;
     }
@@ -268,6 +313,44 @@
 <body>
 
 <div id="header">
+  <h1><i class="fa-solid fa-satellite-dish"></i>Sonde App</h1>
+  <div id="conn-status">
+    <div id="conn-dot"></div>
+    <span id="conn-label">Connecting...</span>
+  </div>
+  <button class="header-btn" id="scan-btn" onclick="scanToggle()">
+    <i class="fa-solid fa-tower-broadcast"></i> Scan
+  </button>
+  <button class="header-btn danger" onclick="releaseRTL()">
+    <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
+  </button>
+
+  <div class="spacer"></div>
+
+  <!-- Draw button -->
+  <button class="icon-btn" id="draw-btn" onclick="toggleDrawPanel()" title="Drawing tools">
+    <i class="fa-solid fa-pencil"></i> Draw
+  </button>
+  <div id="draw-panel">
+    <div class="draw-group-label">Tools</div>
+    <button class="draw-tool-btn" id="dtool-ruler"   onclick="startDrawTool('ruler')">  <i class="fa-solid fa-ruler"></i>   Ruler</button>
+    <button class="draw-tool-btn" id="dtool-line"    onclick="startDrawTool('line')">   <i class="fa-solid fa-minus"></i>   Line</button>
+    <button class="draw-tool-btn" id="dtool-polygon" onclick="startDrawTool('polygon')"><i class="fa-solid fa-draw-polygon"></i> Area</button>
+    <button class="draw-tool-btn" id="dtool-circle"  onclick="startDrawTool('circle')"> <i class="fa-regular fa-circle"></i> Circle</button>
+    <hr class="draw-sep">
+    <div id="draw-info"></div>
+    <button class="draw-action-btn finish" id="draw-finish-btn" onclick="finishDrawTool()" hidden><i class="fa-solid fa-check"></i> Finish</button>
+    <button class="draw-action-btn"        id="draw-undo-btn"   onclick="undoDrawPoint()"  hidden><i class="fa-solid fa-rotate-left"></i> Undo Last</button>
+    <button class="draw-action-btn danger" id="draw-cancel-btn" onclick="clearDrawTool()"  hidden><i class="fa-solid fa-xmark"></i> Cancel</button>
+    <hr class="draw-sep" id="draw-clear-sep">
+    <button class="draw-action-btn danger" id="draw-clearall-btn" onclick="clearAllDrawings()"><i class="fa-solid fa-trash"></i> Clear All</button>
+  </div>
+
+  <!-- Layers button -->
+  <button class="icon-btn" id="layers-btn" onclick="toggleLayersPanel()" title="Map layers">
+    <i class="fa-solid fa-layer-group"></i> Layers
+  </button>
+
   <!-- Burger menu -->
   <button class="icon-btn" id="burger-btn" onclick="toggleBurger()" title="Menu">
     <i class="fa-solid fa-bars"></i>
@@ -288,24 +371,6 @@
       <i class="fa-solid fa-power-off"></i> Stop App
     </button>
   </div>
-
-  <h1><i class="fa-solid fa-satellite-dish"></i>Sonde App</h1>
-  <div id="conn-status">
-    <div id="conn-dot"></div>
-    <span id="conn-label">Connecting...</span>
-  </div>
-  <div class="spacer"></div>
-  <button class="header-btn" id="scan-btn" onclick="scanToggle()">
-    <i class="fa-solid fa-tower-broadcast"></i> Scan
-  </button>
-  <button class="header-btn danger" onclick="releaseRTL()">
-    <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
-  </button>
-
-  <!-- Layers button -->
-  <button class="icon-btn" id="layers-btn" onclick="toggleLayersPanel()" title="Map layers">
-    <i class="fa-solid fa-layer-group"></i> Layers
-  </button>
   <div id="layers-panel">
     <div class="layers-group-label">Base</div>
     <button class="layer-opt active" id="lopt-osm" onclick="setLayer('osm')"><i class="fa-solid fa-map"></i> OpenStreetMap</button>
@@ -321,6 +386,7 @@
 </div>
 
 <div id="toast"></div>
+<div id="draw-banner"></div>
 
 <div id="local-panel">
   <label>Local Tilesets</label>
@@ -664,6 +730,7 @@ function toggleLayersPanel() {
 function closeAllPanels() {
   document.getElementById('burger-panel').classList.remove('open');
   document.getElementById('layers-panel').classList.remove('open');
+  document.getElementById('draw-panel').classList.remove('open');
   const lp = document.getElementById('local-panel');
   if (lp) lp.style.display = 'none';
   const kp = document.getElementById('key-panel');
@@ -675,6 +742,9 @@ document.addEventListener('click', function(e) {
   if (!e.target.closest('#burger-btn') && !e.target.closest('#burger-panel')) closeBurger();
   if (!e.target.closest('#layers-btn') && !e.target.closest('#layers-panel') && !e.target.closest('#local-panel')) {
     document.getElementById('layers-panel').classList.remove('open');
+  }
+  if (!e.target.closest('#draw-btn') && !e.target.closest('#draw-panel')) {
+    document.getElementById('draw-panel').classList.remove('open');
   }
 });
 
@@ -698,6 +768,228 @@ async function killApp() {
   const ok = confirm('Stop the Sonde App service?');
   if (!ok) return;
   await fetch('/api/kill', { method: 'POST' });
+}
+
+
+// ===== DRAWING ENGINE =====
+const draw = {
+  tool: null,        // 'ruler' | 'line' | 'polygon' | 'circle'
+  points: [],        // [{lat,lng}]
+  markers: [],       // L.marker[]
+  shape: null,       // L.polyline | L.polygon | L.circle
+  preview: null,     // L.circle (circle tool preview)
+  circleCenter: null,
+};
+
+const DRAW_COLOR  = '#deaf4a';
+const DRAW_COLOR2 = '#f59e0b';
+
+function fmtDist(m) {
+  return m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m';
+}
+function haversine(a, b) {
+  const R = 6371000, toR = Math.PI / 180;
+  const dLat = (b.lat - a.lat) * toR, dLng = (b.lng - a.lng) * toR;
+  const s = Math.sin(dLat/2)**2 + Math.cos(a.lat*toR)*Math.cos(b.lat*toR)*Math.sin(dLng/2)**2;
+  return 2 * R * Math.asin(Math.sqrt(s));
+}
+
+function setDrawBanner(text) {
+  const b = document.getElementById('draw-banner');
+  b.textContent = text; b.classList.toggle('show', !!text);
+}
+function setDrawInfo(text) {
+  document.getElementById('draw-info').textContent = text;
+}
+function updateDrawButtons() {
+  const active = !!draw.tool;
+  const hasPts  = draw.points.length > 0;
+  const canFin  = draw.tool === 'circle' ? !!draw.circleCenter : draw.points.length >= 2;
+  const canUndo = draw.tool !== 'circle' && hasPts;
+  document.getElementById('draw-finish-btn').hidden = !active || !canFin;
+  document.getElementById('draw-undo-btn').hidden   = !active || !canUndo;
+  document.getElementById('draw-cancel-btn').hidden = !active;
+  ['dtool-ruler','dtool-line','dtool-polygon','dtool-circle'].forEach(id => {
+    const t = id.replace('dtool-','');
+    document.getElementById(id).classList.toggle('active', draw.tool === t);
+  });
+}
+
+function clearDrawTool() {
+  draw.markers.forEach(m => map.removeLayer(m));
+  draw.markers = [];
+  if (draw.shape)   { map.removeLayer(draw.shape);   draw.shape   = null; }
+  if (draw.preview) { map.removeLayer(draw.preview);  draw.preview = null; }
+  draw.points = [];
+  draw.tool = null;
+  draw.circleCenter = null;
+  document.getElementById('map').classList.remove('draw-active');
+  setDrawBanner('');
+  setDrawInfo('');
+  updateDrawButtons();
+}
+
+function startDrawTool(tool) {
+  clearDrawTool();
+  draw.tool = tool;
+  document.getElementById('map').classList.add('draw-active');
+  const banners = {
+    ruler:   'Click points to measure. Finish when done.',
+    line:    'Click points for a line. Finish when done.',
+    polygon: 'Click corners of the area. Finish when done.',
+    circle:  'Click to set the circle center.',
+  };
+  setDrawBanner(banners[tool]);
+  updateDrawButtons();
+}
+
+function addDrawPoint(latlng) {
+  if (!draw.tool || draw.tool === 'circle') return;
+  const idx = draw.points.length;
+  draw.points.push(latlng);
+  const dot = L.circleMarker(latlng, {
+    radius: 5, color: DRAW_COLOR, fillColor: DRAW_COLOR, fillOpacity: 1, weight: 2,
+  }).addTo(map);
+  draw.markers.push(dot);
+  redrawShape();
+  // update distance info for ruler
+  if (draw.tool === 'ruler' && draw.points.length >= 2) {
+    let total = 0;
+    for (let i = 1; i < draw.points.length; i++) total += haversine(draw.points[i-1], draw.points[i]);
+    setDrawInfo('Total: ' + fmtDist(total));
+  }
+  updateDrawButtons();
+}
+
+function undoDrawPoint() {
+  if (!draw.points.length) return;
+  draw.points.pop();
+  const m = draw.markers.pop();
+  if (m) map.removeLayer(m);
+  redrawShape();
+  if (draw.tool === 'ruler' && draw.points.length >= 2) {
+    let total = 0;
+    for (let i = 1; i < draw.points.length; i++) total += haversine(draw.points[i-1], draw.points[i]);
+    setDrawInfo('Total: ' + fmtDist(total));
+  } else {
+    setDrawInfo('');
+  }
+  updateDrawButtons();
+}
+
+function redrawShape() {
+  if (draw.shape) { map.removeLayer(draw.shape); draw.shape = null; }
+  if (draw.points.length < 2) return;
+  const lls = draw.points.map(p => [p.lat, p.lng]);
+  if (draw.tool === 'polygon') {
+    draw.shape = L.polygon(lls, { color: DRAW_COLOR, weight: 2, fillOpacity: 0.12 }).addTo(map);
+  } else {
+    draw.shape = L.polyline(lls, { color: DRAW_COLOR, weight: 3 }).addTo(map);
+  }
+}
+
+function finishDrawTool() {
+  if (!draw.tool) return;
+  if (draw.tool === 'circle') {
+    // circle is already on map from preview — just deactivate tool, keep shape
+    draw.preview = null; // don't remove it
+    draw.shape = null;
+    draw.circleCenter = null;
+    draw.tool = null;
+    document.getElementById('map').classList.remove('draw-active');
+    setDrawBanner('');
+    setDrawInfo('');
+    updateDrawButtons();
+    return;
+  }
+  if (draw.points.length < 2) return;
+  // track finished shape + markers for clearAllDrawings()
+  if (draw.shape) drawnShapes.push(draw.shape);
+  draw.markers.forEach(m => drawnShapes.push(m));
+  draw.shape = null;
+  draw.markers = [];
+  draw.points = [];
+  draw.tool = null;
+  document.getElementById('map').classList.remove('draw-active');
+  setDrawBanner('');
+  setDrawInfo('');
+  updateDrawButtons();
+}
+
+function clearAllDrawings() {
+  clearDrawTool();
+  // remove any lingering finished shapes tracked separately
+  drawnShapes.forEach(s => map.removeLayer(s));
+  drawnShapes.length = 0;
+}
+
+// Finished shapes that persist after finishDrawTool()
+const drawnShapes = [];
+
+// Circle tool state machine
+function handleCircleClick(latlng) {
+  if (!draw.circleCenter) {
+    // first click — set center
+    draw.circleCenter = latlng;
+    const dot = L.circleMarker(latlng, {
+      radius: 6, color: DRAW_COLOR, fillColor: DRAW_COLOR, fillOpacity: 1, weight: 2,
+    }).addTo(map);
+    draw.markers.push(dot);
+    draw.preview = L.circle(latlng, { radius: 1, color: DRAW_COLOR, weight: 2, fillOpacity: 0.1 }).addTo(map);
+    setDrawBanner('Move mouse to set radius, then click to confirm.');
+    updateDrawButtons();
+  } else {
+    // second click — confirm
+    const r = haversine(draw.circleCenter, latlng);
+    if (draw.preview) map.removeLayer(draw.preview);
+    const finalCircle = L.circle(draw.circleCenter, {
+      radius: r, color: DRAW_COLOR, weight: 2, fillOpacity: 0.1,
+    }).addTo(map);
+    drawnShapes.push(finalCircle);
+    draw.preview = null;
+    draw.markers.forEach(m => map.removeLayer(m));
+    draw.markers = [];
+    draw.circleCenter = null;
+    draw.tool = null;
+    document.getElementById('map').classList.remove('draw-active');
+    setDrawBanner('');
+    setDrawInfo('');
+    updateDrawButtons();
+  }
+}
+
+// Map event wiring (added after map init)
+function initDrawEvents() {
+  map.on('click', function(e) {
+    if (!draw.tool) return;
+    if (draw.tool === 'circle') {
+      handleCircleClick(e.latlng);
+    } else {
+      addDrawPoint(e.latlng);
+    }
+  });
+  map.on('mousemove', function(e) {
+    if (draw.tool === 'circle' && draw.circleCenter && draw.preview) {
+      const r = haversine(draw.circleCenter, e.latlng);
+      draw.preview.setRadius(r);
+      setDrawInfo('Radius: ' + fmtDist(r));
+    }
+  });
+  // keyboard shortcuts
+  document.addEventListener('keydown', function(e) {
+    if (!draw.tool) return;
+    if (e.key === 'Escape') clearDrawTool();
+    if ((e.key === 'Backspace' || e.key === 'Delete') && draw.tool !== 'circle') undoDrawPoint();
+    if (e.key === 'Enter') finishDrawTool();
+  });
+}
+
+// ===== DRAW PANEL TOGGLE =====
+function toggleDrawPanel() {
+  const p = document.getElementById('draw-panel');
+  const wasOpen = p.classList.contains('open');
+  closeAllPanels();
+  if (!wasOpen) p.classList.add('open');
 }
 
 // ===== SCAN / RELEASE =====
@@ -875,6 +1167,7 @@ async function upgradeApp() {
 
 loadPresets();
   loadVersion();
+  initDrawEvents();
 connectAutoRx();
 </script>
 </body>
