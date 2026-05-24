@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Sonde Tracker</title>
+  <title>Sonde App</title>
   <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css">
   <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.5.0/css/all.min.css">
   <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js"></script>
@@ -34,20 +34,37 @@
       height: var(--header-h);
       display: flex;
       align-items: center;
-      padding: 0 20px;
-      gap: 16px;
+      padding: 0 14px;
+      gap: 10px;
       background: linear-gradient(160deg, rgba(10,10,18,0.5) 0%, rgba(18,18,31,0.5) 100%);
       border-bottom: 1px solid var(--accent-faint);
       position: relative;
       z-index: 1000;
     }
-    #header h1 { font-size: 0.9rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); }
+    #header h1 { font-size: 0.9rem; font-weight: 600; letter-spacing: 0.14em; text-transform: uppercase; color: var(--accent); white-space: nowrap; }
     #header h1 i { margin-right: 8px; }
-    #conn-status { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); }
+    #conn-status { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
     #conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); transition: background 0.3s, box-shadow 0.3s; }
     #conn-dot.on  { background: var(--green); box-shadow: 0 0 7px rgba(61,220,132,0.55); }
     #conn-dot.off { background: var(--red);   box-shadow: 0 0 7px rgba(255,80,80,0.4); }
     .spacer { flex: 1; }
+
+    .header-btn {
+      font-size: 0.7rem; font-weight: 500; letter-spacing: 0.08em; text-transform: uppercase;
+      padding: 5px 10px; border-radius: 6px; border: 1px solid var(--border);
+      background: transparent; color: var(--text-muted); cursor: pointer; transition: all 0.15s;
+      display: flex; align-items: center; gap: 5px; white-space: nowrap;
+    }
+    .header-btn:hover { color: var(--text); border-color: var(--accent-mid); }
+    .header-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+    .header-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
+
+    .icon-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      cursor: pointer; font-size: 0.8rem; padding: 5px 8px;
+      border-radius: 6px; transition: color 0.15s, background 0.15s, border-color 0.15s;
+    }
+    .icon-btn:hover { color: var(--accent); background: var(--accent-faint); border-color: var(--accent-mid); }
 
     #layer-btns { display: flex; gap: 4px; }
     .layer-btn {
@@ -57,6 +74,29 @@
     }
     .layer-btn:hover { color: var(--text); border-color: var(--accent-mid); }
     .layer-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
+
+    /* MapTiler key panel */
+    #key-panel {
+      display: none; position: absolute; top: calc(var(--header-h) + 6px); right: 14px;
+      background: var(--bg2); border: 1px solid var(--accent-mid); border-radius: 8px;
+      padding: 10px 12px; gap: 8px; flex-direction: column; z-index: 2000; min-width: 260px;
+    }
+    #key-panel label { font-size: 0.68rem; color: var(--accent-muted); letter-spacing: 0.08em; text-transform: uppercase; }
+    #mt-key-input {
+      background: rgba(255,255,255,0.06); border: 1px solid var(--border);
+      border-radius: 5px; color: var(--text); font-size: 0.8rem;
+      padding: 6px 10px; width: 100%; outline: none;
+    }
+    #mt-key-input:focus { border-color: var(--accent-mid); }
+    #key-panel-btns { display: flex; gap: 6px; }
+    .key-save-btn {
+      font-size: 0.72rem; padding: 5px 12px; border-radius: 5px; cursor: pointer; font-weight: 500;
+      background: var(--accent-bg); border: 1px solid var(--accent-mid); color: var(--accent);
+    }
+    .key-cancel-btn {
+      font-size: 0.72rem; padding: 5px 12px; border-radius: 5px; cursor: pointer;
+      background: transparent; border: 1px solid var(--border); color: var(--text-muted);
+    }
 
     #main { display: flex; height: calc(100vh - var(--header-h) - var(--telem-h)); }
 
@@ -74,12 +114,6 @@
       letter-spacing: 0.12em; text-transform: uppercase; color: var(--accent-muted);
       border-bottom: 1px solid var(--border); flex-shrink: 0;
     }
-    .icon-btn {
-      background: none; border: none; color: var(--text-muted);
-      cursor: pointer; font-size: 0.8rem; padding: 2px 5px;
-      border-radius: 4px; transition: color 0.15s, background 0.15s;
-    }
-    .icon-btn:hover { color: var(--accent); background: var(--accent-faint); }
     .side-list { overflow-y: auto; flex: 1; }
     .side-list::-webkit-scrollbar { width: 4px; }
     .side-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
@@ -139,6 +173,12 @@
     .sonde-call { font-size: 0.8rem; font-weight: 600; color: var(--text); }
     .sonde-sub  { font-size: 0.68rem; color: var(--text-muted); margin-top: 1px; }
     .sonde-alt  { font-size: 0.78rem; color: var(--accent); font-variant-numeric: tabular-nums; }
+    .gpx-btn {
+      background: none; border: 1px solid var(--border); color: var(--text-muted);
+      cursor: pointer; font-size: 0.65rem; padding: 3px 6px;
+      border-radius: 4px; transition: all 0.15s; white-space: nowrap;
+    }
+    .gpx-btn:hover { color: var(--accent); border-color: var(--accent-mid); background: var(--accent-faint); }
     #no-sondes  { padding: 16px 14px; font-size: 0.75rem; color: var(--text-muted); text-align: center; }
 
     #map { flex: 1; height: 100%; }
@@ -168,17 +208,33 @@
 <body>
 
 <div id="header">
-  <h1><i class="fa-solid fa-satellite-dish"></i>Sonde</h1>
+  <h1><i class="fa-solid fa-satellite-dish"></i>Sonde App</h1>
   <div id="conn-status">
     <div id="conn-dot"></div>
     <span id="conn-label">Connecting...</span>
   </div>
   <div class="spacer"></div>
+  <button class="header-btn" id="scan-btn" onclick="scanToggle()">
+    <i class="fa-solid fa-tower-broadcast"></i> Scan
+  </button>
+  <button class="header-btn danger" onclick="releaseRTL()">
+    <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
+  </button>
+  <button class="icon-btn" onclick="toggleKeyPanel()" title="MapTiler API key"><i class="fa-solid fa-key"></i></button>
   <div id="layer-btns">
     <button class="layer-btn active" onclick="setLayer('osm')">OSM</button>
     <button class="layer-btn" onclick="setLayer('topo')">Topo</button>
     <button class="layer-btn" onclick="setLayer('mt')">MT Topo</button>
     <button class="layer-btn" onclick="setLayer('sat')">Sat</button>
+  </div>
+</div>
+
+<div id="key-panel">
+  <label>MapTiler API Key</label>
+  <input id="mt-key-input" type="text" placeholder="Paste your MapTiler key here">
+  <div id="key-panel-btns">
+    <button class="key-save-btn" onclick="saveMtKey()">Save</button>
+    <button class="key-cancel-btn" onclick="toggleKeyPanel()">Cancel</button>
   </div>
 </div>
 
@@ -225,38 +281,71 @@ const map = L.map('map', { center: [46.5, 14.5], zoom: 7 });
 const layers = {
   osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
   topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',  { attribution: '© OpenTopoMap',  maxZoom: 17 }),
-  mt:   L.tileLayer('https://tile.waymarkedtrails.org/hiking/{z}/{x}/{y}.png', {
-          attribution: '© Waymarked Trails / OpenStreetMap', maxZoom: 19, opacity: 0.7
-        }),
   sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
 };
-
-// MT Topo = OSM base + hiking overlay
-const mtBase = L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 });
 layers.osm.addTo(map);
 let currentLayer = 'osm';
-let mtOverlay = null;
+let mtLayer = null;
+
+function getMtLayer() {
+  const key = localStorage.getItem('mt_key') || '';
+  if (!key) return null;
+  return L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + key, {
+    attribution: '© MapTiler © OpenStreetMap', maxZoom: 20, tileSize: 256,
+  });
+}
 
 function setLayer(name) {
   if (name === currentLayer) return;
 
-  // Remove previous base + any MT overlay
-  if (mtOverlay) { map.removeLayer(mtOverlay); mtOverlay = null; }
-  if (currentLayer === 'mt') { map.removeLayer(mtBase); }
-  else { map.removeLayer(layers[currentLayer]); }
+  if (name === 'mt' && !localStorage.getItem('mt_key')) {
+    toggleKeyPanel();
+    return;
+  }
+
+  if (currentLayer === 'mt' && mtLayer) {
+    map.removeLayer(mtLayer);
+    mtLayer = null;
+  } else {
+    map.removeLayer(layers[currentLayer]);
+  }
 
   if (name === 'mt') {
-    mtBase.addTo(map);
-    mtOverlay = layers.mt;
-    mtOverlay.addTo(map);
+    mtLayer = getMtLayer();
+    mtLayer.addTo(map);
   } else {
     layers[name].addTo(map);
   }
 
   currentLayer = name;
-  document.querySelectorAll('.layer-btn').forEach(b =>
-    b.classList.toggle('active', b.textContent.trim().toLowerCase().replace(' ','') === name)
-  );
+  document.querySelectorAll('.layer-btn').forEach(b => {
+    const n = b.textContent.trim().toLowerCase().replace(/\s+/g, '');
+    b.classList.toggle('active', n === name || (name === 'mt' && n === 'mttopo'));
+  });
+}
+
+// ===== MAPTILER KEY PANEL =====
+function toggleKeyPanel() {
+  const panel = document.getElementById('key-panel');
+  const visible = panel.style.display === 'flex';
+  panel.style.display = visible ? 'none' : 'flex';
+  if (!visible) {
+    document.getElementById('mt-key-input').value = localStorage.getItem('mt_key') || '';
+    document.getElementById('mt-key-input').focus();
+  }
+}
+
+function saveMtKey() {
+  const key = document.getElementById('mt-key-input').value.trim();
+  if (key) localStorage.setItem('mt_key', key);
+  else localStorage.removeItem('mt_key');
+  document.getElementById('key-panel').style.display = 'none';
+  if (currentLayer === 'mt') {
+    if (mtLayer) { map.removeLayer(mtLayer); mtLayer = null; }
+    mtLayer = getMtLayer();
+    if (mtLayer) mtLayer.addTo(map);
+    else { layers.osm.addTo(map); currentLayer = 'osm'; }
+  }
 }
 
 // ===== SONDES =====
@@ -273,32 +362,49 @@ function makeSondeIcon(id) {
   const col = sondeColor(id);
   return L.divIcon({
     className: 'sonde-marker-icon',
-    html: `<svg width="26" height="34" viewBox="0 0 26 34">
-      <circle cx="13" cy="13" r="10" fill="${col}" opacity="0.92" stroke="#0a0a12" stroke-width="2"/>
-      <line x1="13" y1="23" x2="13" y2="34" stroke="${col}" stroke-width="2" opacity="0.6"/>
-      <text x="13" y="17" text-anchor="middle" font-size="10" fill="#0a0a12" font-weight="700">↑</text>
-    </svg>`,
+    html: '<svg width="26" height="34" viewBox="0 0 26 34">'
+      + '<circle cx="13" cy="13" r="10" fill="' + col + '" opacity="0.92" stroke="#0a0a12" stroke-width="2"/>'
+      + '<line x1="13" y1="23" x2="13" y2="34" stroke="' + col + '" stroke-width="2" opacity="0.6"/>'
+      + '<text x="13" y="17" text-anchor="middle" font-size="10" fill="#0a0a12" font-weight="700">↑</text>'
+      + '</svg>',
     iconSize: [26, 34], iconAnchor: [13, 34], popupAnchor: [0, -36],
   });
 }
 
+function parseFreq(freq) {
+  if (freq == null) return null;
+  if (typeof freq === 'string') return parseFloat(freq.replace(/[^0-9.]/g, ''));
+  return parseFloat(freq);
+}
+
+function freqDisplay(freq) {
+  if (freq == null) return '—';
+  const n = parseFreq(freq);
+  return isNaN(n) ? String(freq) : n.toFixed(3);
+}
+
 function updateSonde(data) {
-  const id = data.callsign;
+  const id = data.id || data.callsign;
   if (!id || data.lat == null || data.lon == null) return;
   const pos = [data.lat, data.lon];
   const col = sondeColor(id);
 
   if (!sondes[id]) {
     const marker = L.marker(pos, { icon: makeSondeIcon(id) }).addTo(map);
-    marker.bindPopup(`<b style="color:#deaf4a">${id}</b><br>${data.type||''} · ${data.freq||''} MHz`);
+    marker.bindPopup('<b style="color:#deaf4a">' + id + '</b><br>' + (data.type || '') + ' · ' + freqDisplay(data.freq) + ' MHz');
     marker.on('click', () => selectSonde(id));
     const polyline = L.polyline([pos], { color: col, weight: 2, opacity: 0.65 }).addTo(map);
-    sondes[id] = { telem: data, marker, track: [pos], polyline };
+    sondes[id] = {
+      telem: data,
+      marker,
+      track: [{ lat: data.lat, lon: data.lon, alt: data.alt, time: new Date() }],
+      polyline,
+    };
   } else {
     sondes[id].telem = data;
     sondes[id].marker.setLatLng(pos);
-    sondes[id].track.push(pos);
-    sondes[id].polyline.setLatLngs(sondes[id].track);
+    sondes[id].track.push({ lat: data.lat, lon: data.lon, alt: data.alt, time: new Date() });
+    sondes[id].polyline.setLatLngs(sondes[id].track.map(p => [p.lat, p.lon]));
   }
 
   renderSondeList();
@@ -314,40 +420,89 @@ function selectSonde(id) {
   }
 }
 
-function fmt(v, dec=0) {
+function fmt(v, dec) {
+  if (dec === undefined) dec = 0;
   return v != null && !isNaN(v) ? parseFloat(v).toFixed(dec) : '—';
 }
 
 function updateTelemBar(d) {
+  const id = d.id || d.callsign;
   document.getElementById('telem-bar').classList.remove('hidden');
-  document.getElementById('t-callsign').textContent = d.callsign || '—';
-  document.getElementById('t-type').textContent = [d.type, d.freq ? d.freq+' MHz' : ''].filter(Boolean).join(' · ');
-  document.getElementById('t-alt').innerHTML   = fmt(d.alt)   + '<span class="telem-unit">m</span>';
+  document.getElementById('t-callsign').textContent = id || '—';
+  document.getElementById('t-type').textContent = [d.type, freqDisplay(d.freq) + ' MHz'].filter(Boolean).join(' · ');
+  document.getElementById('t-alt').innerHTML   = fmt(d.alt)     + '<span class="telem-unit">m</span>';
   document.getElementById('t-climb').innerHTML = fmt(d.vel_v,1) + '<span class="telem-unit">m/s</span>';
   const spd = d.vel_h != null ? d.vel_h * 3.6 : null;
-  document.getElementById('t-speed').innerHTML = fmt(spd,1) + '<span class="telem-unit">km/h</span>';
-  document.getElementById('t-temp').innerHTML  = fmt(d.temp,1) + '<span class="telem-unit">°C</span>';
+  document.getElementById('t-speed').innerHTML = fmt(spd,1)     + '<span class="telem-unit">km/h</span>';
+  document.getElementById('t-temp').innerHTML  = fmt(d.temp,1)  + '<span class="telem-unit">°C</span>';
   document.getElementById('t-hum').innerHTML   = fmt(d.humidity,0) + '<span class="telem-unit">%</span>';
-  document.getElementById('t-freq').innerHTML  = fmt(d.freq,3) + '<span class="telem-unit">MHz</span>';
-  document.getElementById('t-snr').innerHTML   = fmt(d.snr,1) + '<span class="telem-unit">dB</span>';
+  document.getElementById('t-freq').innerHTML  = freqDisplay(d.freq) + '<span class="telem-unit">MHz</span>';
+  document.getElementById('t-snr').innerHTML   = fmt(d.snr,1)   + '<span class="telem-unit">dB</span>';
 }
 
 function renderSondeList() {
   const list = document.getElementById('sondes-list');
   const ids = Object.keys(sondes);
   if (!ids.length) { list.innerHTML = '<div id="no-sondes">No sondes detected</div>'; return; }
-  list.innerHTML = ids.map(id => {
+  list.innerHTML = ids.map(function(id) {
     const d = sondes[id].telem;
-    const alt = d.alt != null ? Math.round(d.alt)+'m' : '—';
-    return `<div class="sonde-item${selectedSonde===id?' selected':''}" data-id="${id}" onclick="selectSonde('${id}')">
-      <div class="sonde-dot"></div>
-      <div class="sonde-info">
-        <div class="sonde-call">${id}</div>
-        <div class="sonde-sub">${d.type||'?'} · ${d.freq||'?'} MHz</div>
-      </div>
-      <div class="sonde-alt">${alt}</div>
-    </div>`;
+    const alt = d.alt != null ? Math.round(d.alt) + 'm' : '—';
+    const sel = selectedSonde === id ? ' selected' : '';
+    return '<div class="sonde-item' + sel + '" data-id="' + id + '" onclick="selectSonde(\'' + id + '\')">'
+      + '<div class="sonde-dot"></div>'
+      + '<div class="sonde-info">'
+      + '<div class="sonde-call">' + id + '</div>'
+      + '<div class="sonde-sub">' + (d.type || '?') + ' · ' + freqDisplay(d.freq) + ' MHz</div>'
+      + '</div>'
+      + '<div class="sonde-alt">' + alt + '</div>'
+      + '<button class="gpx-btn" onclick="event.stopPropagation(); exportGPX(\'' + id + '\')" title="Download track as GPX">'
+      + '<i class="fa-solid fa-download"></i> GPX</button>'
+      + '</div>';
   }).join('');
+}
+
+// ===== GPX EXPORT =====
+function exportGPX(id) {
+  const s = sondes[id];
+  if (!s || !s.track.length) return;
+  const pts = s.track.map(function(p) {
+    const ele = p.alt != null ? '<ele>' + p.alt.toFixed(1) + '</ele>' : '';
+    return '    <trkpt lat="' + p.lat + '" lon="' + p.lon + '">' + ele + '<time>' + p.time.toISOString() + '</time></trkpt>';
+  }).join('\n');
+  const gpx = '<?xml version="1.0" encoding="UTF-8"?>\n'
+    + '<gpx version="1.1" creator="Sonde App" xmlns="http://www.topografix.com/GPX/1/1">\n'
+    + '  <trk><name>' + id + '</name><trkseg>\n'
+    + pts + '\n'
+    + '  </trkseg></trk>\n'
+    + '</gpx>';
+  const blob = new Blob([gpx], { type: 'application/gpx+xml' });
+  const a = document.createElement('a');
+  a.href = URL.createObjectURL(blob);
+  a.download = id + '.gpx';
+  a.click();
+  URL.revokeObjectURL(a.href);
+}
+
+// ===== SCAN / RELEASE =====
+let scanning = false;
+
+async function scanToggle() {
+  const btn = document.getElementById('scan-btn');
+  if (!scanning) {
+    await fetch('/api/scan/start', { method: 'POST' });
+    scanning = true;
+    btn.innerHTML = '<i class="fa-solid fa-stop"></i> Stop';
+    btn.classList.add('active');
+  } else {
+    await fetch('/api/scan/stop', { method: 'POST' });
+    scanning = false;
+    btn.innerHTML = '<i class="fa-solid fa-tower-broadcast"></i> Scan';
+    btn.classList.remove('active');
+  }
+}
+
+async function releaseRTL() {
+  await fetch('/api/rtl/release', { method: 'POST' });
 }
 
 // ===== PRESETS =====
@@ -363,41 +518,45 @@ async function loadPresets() {
 async function savePresets() {
   await fetch('/api/presets', {
     method: 'POST',
-    headers: {'Content-Type': 'application/json'},
+    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify(presets),
   });
 }
 
 function renderPresets() {
   const list = document.getElementById('presets-list');
-  const activeFreqs = new Set(Object.values(sondes).map(s => parseFloat(s.telem.freq).toFixed(2)));
-  list.innerHTML = presets.map(p => {
+  const activeFreqs = new Set(Object.values(sondes).map(function(s) {
+    const f = parseFreq(s.telem.freq);
+    return f != null ? f.toFixed(2) : null;
+  }).filter(Boolean));
+
+  list.innerHTML = presets.map(function(p) {
     const isActive = activeFreqs.has(parseFloat(p.freq).toFixed(2));
     const editOpen = editingId === p.id;
-    const meta = [p.type, !p.verified ? '·̈ unverified' : ''].filter(Boolean).join(' ');
-    return `<div class="preset-item${isActive?' active-freq':''}">
-      <div class="preset-country">${p.country}</div>
-      <div class="preset-info">
-        <div class="preset-name">${p.name}</div>
-        <div class="preset-meta">${meta}</div>
-      </div>
-      <div class="preset-freq">${parseFloat(p.freq).toFixed(2)}</div>
-      <button class="preset-edit-btn" onclick="toggleEdit('${p.id}')" title="Edit"><i class="fa-solid fa-pen"></i></button>
-    </div>
-    <div class="preset-edit-row${editOpen?' open':''}" id="edit-${p.id}">
-      <div class="edit-fields">
-        <input type="text"   id="ef-name-${p.id}"    value="${p.name}"    placeholder="Name">
-        <input type="text"   id="ef-country-${p.id}" value="${p.country}" placeholder="Country" maxlength="3">
-        <input type="number" id="ef-freq-${p.id}"    value="${p.freq}"    placeholder="MHz" step="0.05">
-        <input type="text"   id="ef-type-${p.id}"    value="${p.type||''}" placeholder="Type">
-      </div>
-      <div class="edit-actions">
-        <button class="edit-save-btn"   onclick="savePreset('${p.id}')">Save</button>
-        <button class="edit-cancel-btn" onclick="toggleEdit(null)">Cancel</button>
-        <button class="edit-del-btn"    onclick="deletePreset('${p.id}')">Delete</button>
-      </div>
-    </div>`;
+    const meta = [p.type, !p.verified ? '· unverified' : ''].filter(Boolean).join(' ');
+    return '<div class="preset-item' + (isActive ? ' active-freq' : '') + '">'
+      + '<div class="preset-country">' + p.country + '</div>'
+      + '<div class="preset-info">'
+      + '<div class="preset-name">' + p.name + '</div>'
+      + '<div class="preset-meta">' + meta + '</div>'
+      + '</div>'
+      + '<div class="preset-freq">' + parseFloat(p.freq).toFixed(2) + '</div>'
+      + '<button class="preset-edit-btn" onclick="toggleEdit(\'' + p.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>'
+      + '</div>'
+      + '<div class="preset-edit-row' + (editOpen ? ' open' : '') + '" id="edit-' + p.id + '">'
+      + '<div class="edit-fields">'
+      + '<input type="text"   id="ef-name-' + p.id + '"    value="' + p.name    + '" placeholder="Name">'
+      + '<input type="text"   id="ef-country-' + p.id + '" value="' + p.country + '" placeholder="Country" maxlength="3">'
+      + '<input type="number" id="ef-freq-' + p.id + '"    value="' + p.freq    + '" placeholder="MHz" step="0.05">'
+      + '<input type="text"   id="ef-type-' + p.id + '"    value="' + (p.type || '') + '" placeholder="Type">'
+      + '</div>'
+      + '<div class="edit-actions">'
+      + '<button class="edit-save-btn"   onclick="savePreset(\'' + p.id + '\')">Save</button>'
+      + '<button class="edit-cancel-btn" onclick="toggleEdit(null)">Cancel</button>'
+      + '<button class="edit-del-btn"    onclick="deletePreset(\'' + p.id + '\')">Delete</button>'
+      + '</div></div>';
   }).join('');
+
   const addBtn = document.createElement('button');
   addBtn.id = 'add-preset-btn';
   addBtn.textContent = '+ Add preset';
@@ -409,18 +568,18 @@ function toggleEdit(id) {
   editingId = editingId === id ? null : id;
   renderPresets();
   if (editingId) {
-    const el = document.getElementById(`edit-${editingId}`);
-    if (el) el.scrollIntoView({block: 'nearest'});
+    const el = document.getElementById('edit-' + editingId);
+    if (el) el.scrollIntoView({ block: 'nearest' });
   }
 }
 
 function savePreset(id) {
-  const p = presets.find(x => x.id === id);
+  const p = presets.find(function(x) { return x.id === id; });
   if (!p) return;
-  p.name    = document.getElementById(`ef-name-${id}`).value.trim();
-  p.country = document.getElementById(`ef-country-${id}`).value.trim().toUpperCase();
-  p.freq    = parseFloat(document.getElementById(`ef-freq-${id}`).value);
-  p.type    = document.getElementById(`ef-type-${id}`).value.trim();
+  p.name    = document.getElementById('ef-name-' + id).value.trim();
+  p.country = document.getElementById('ef-country-' + id).value.trim().toUpperCase();
+  p.freq    = parseFloat(document.getElementById('ef-freq-' + id).value);
+  p.type    = document.getElementById('ef-type-' + id).value.trim();
   p.verified = false;
   editingId = null;
   savePresets();
@@ -428,7 +587,7 @@ function savePreset(id) {
 }
 
 function deletePreset(id) {
-  presets = presets.filter(p => p.id !== id);
+  presets = presets.filter(function(p) { return p.id !== id; });
   editingId = null;
   savePresets();
   renderPresets();
@@ -440,7 +599,8 @@ function addPreset() {
   editingId = newId;
   savePresets();
   renderPresets();
-  document.getElementById(`edit-${newId}`)?.scrollIntoView({block: 'nearest'});
+  const el = document.getElementById('edit-' + newId);
+  if (el) el.scrollIntoView({ block: 'nearest' });
 }
 
 // ===== SOCKET.IO → auto_rx =====
@@ -448,15 +608,15 @@ function connectAutoRx() {
   const dot   = document.getElementById('conn-dot');
   const label = document.getElementById('conn-label');
   try {
-    const socket = io('http://localhost:5000', {
+    const socket = io('http://localhost:5000/update_status', {
       transports: ['websocket'],
       reconnectionDelay: 3000,
       reconnectionAttempts: Infinity,
     });
-    socket.on('connect',       () => { dot.className = 'on';  label.textContent = 'Connected'; });
-    socket.on('disconnect',    () => { dot.className = 'off'; label.textContent = 'Disconnected'; });
-    socket.on('connect_error', () => { dot.className = 'off'; label.textContent = 'auto_rx offline'; });
-    socket.on('telemetry_data', updateSonde);
+    socket.on('connect',       function() { dot.className = 'on';  label.textContent = 'Connected'; });
+    socket.on('disconnect',    function() { dot.className = 'off'; label.textContent = 'Disconnected'; });
+    socket.on('connect_error', function() { dot.className = 'off'; label.textContent = 'auto_rx offline'; });
+    socket.on('telemetry_event', updateSonde);
   } catch(e) {
     dot.className = 'off';
     label.textContent = 'Error';

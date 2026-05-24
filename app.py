@@ -1,5 +1,5 @@
 from flask import Flask, render_template, jsonify, request
-import json, os
+import json, os, subprocess, glob
 
 app = Flask(__name__)
 PRESETS_FILE = os.path.join(os.path.dirname(__file__), 'presets.json')
@@ -39,6 +39,30 @@ def save_presets():
     data = request.get_json()
     with open(PRESETS_FILE, 'w') as f:
         json.dump(data, f, indent=2)
+    return jsonify({'ok': True})
+
+@app.route('/api/scan/start', methods=['POST'])
+def scan_start():
+    subprocess.run(['systemctl', '--user', 'start', 'autorx'], capture_output=True)
+    return jsonify({'ok': True})
+
+@app.route('/api/scan/stop', methods=['POST'])
+def scan_stop():
+    subprocess.run(['systemctl', '--user', 'stop', 'autorx'], capture_output=True)
+    return jsonify({'ok': True})
+
+@app.route('/api/rtl/release', methods=['POST'])
+def rtl_release():
+    for name in ['auto_rx', 'rtl_tcp', 'rtl_fm', 'rtl_power', 'rtl_test', 'rtl_adsb']:
+        subprocess.run(['pkill', '-f', name], capture_output=True)
+    subprocess.run(['sudo', 'systemctl', 'stop', 'dump1090-mutability'], capture_output=True)
+    for dev in glob.glob('/dev/bus/usb/*/*'):
+        try:
+            r = subprocess.run(['sudo', 'fuser', dev], capture_output=True, text=True)
+            for pid in r.stdout.strip().split():
+                subprocess.run(['sudo', 'kill', pid], capture_output=True)
+        except Exception:
+            pass
     return jsonify({'ok': True})
 
 if __name__ == '__main__':
