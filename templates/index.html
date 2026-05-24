@@ -217,6 +217,15 @@
     }
     #draw-banner.show { display: block; }
 
+    /* Draw color picker */
+    .tb-color-swatch {
+      width: 22px; height: 22px; border-radius: 4px; border: 2px solid rgba(255,255,255,0.25);
+      cursor: pointer; flex-shrink: 0; transition: border-color 0.12s;
+    }
+    .tb-color-swatch:hover { border-color: #fff; }
+    .tb-color-swatch.selected { border-color: #fff; box-shadow: 0 0 0 1px rgba(255,255,255,0.5); }
+    #tb-custom-color { width: 22px; height: 22px; border-radius: 4px; border: 1px solid rgba(255,255,255,0.25); cursor: pointer; padding: 0; }
+
     /* Crosshair cursor during drawing */
     #map.draw-active { cursor: crosshair !important; }
 
@@ -513,6 +522,13 @@
   <span id="draw-toolbar-icon"><i class="fa-solid fa-pencil"></i></span>
   <span id="draw-toolbar-label">Draw</span>
   <span id="draw-toolbar-info"></span>
+  <div class="tb-sep"></div>
+  <div class="tb-color-swatch selected" style="background:#deaf4a" title="Gold"    onclick="setDrawColor('#deaf4a',this)"></div>
+  <div class="tb-color-swatch"          style="background:#f87171" title="Red"     onclick="setDrawColor('#f87171',this)"></div>
+  <div class="tb-color-swatch"          style="background:#60a5fa" title="Blue"    onclick="setDrawColor('#60a5fa',this)"></div>
+  <div class="tb-color-swatch"          style="background:#34d399" title="Green"   onclick="setDrawColor('#34d399',this)"></div>
+  <div class="tb-color-swatch"          style="background:#e2e8f0" title="White"   onclick="setDrawColor('#e2e8f0',this)"></div>
+  <input type="color" id="tb-custom-color" title="Custom colour" value="#deaf4a" oninput="setDrawColor(this.value,null)">
   <div class="tb-sep"></div>
   <button class="tb-btn" id="tb-undo-btn"   onclick="undoDrawPoint()"><i class="fa-solid fa-rotate-left"></i> Undo</button>
   <button class="tb-btn finish" id="tb-finish-btn" onclick="finishDrawTool()"><i class="fa-solid fa-check"></i> Finish</button>
@@ -913,7 +929,14 @@ const draw = {
   circleCenter: null,
 };
 
-const DRAW_COLOR = '#deaf4a';
+let DRAW_COLOR = '#deaf4a';
+
+function setDrawColor(hex, swatchEl) {
+  DRAW_COLOR = hex;
+  document.getElementById('tb-custom-color').value = hex;
+  document.querySelectorAll('.tb-color-swatch').forEach(s => s.classList.remove('selected'));
+  if (swatchEl) swatchEl.classList.add('selected');
+}
 
 function fmtDist(m) {
   return m >= 1000 ? (m / 1000).toFixed(2) + ' km' : Math.round(m) + ' m';
@@ -946,6 +969,12 @@ function hideToolbar() {
 }
 function setToolbarInfo(text) {
   document.getElementById('draw-toolbar-info').textContent = text || '';
+}
+function setDrawBanner(text) {
+  const b = document.getElementById('draw-banner');
+  if (!b) return;
+  b.textContent = text;
+  b.classList.toggle('show', !!text);
 }
 function updateToolbarButtons() {
   const hasPts  = draw.points.length > 0;
