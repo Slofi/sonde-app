@@ -591,6 +591,7 @@
     <button class="layer-opt" id="lopt-topo" onclick="setLayer('topo')"><i class="fa-solid fa-mountain"></i> OpenTopoMap</button>
     <button class="layer-opt" id="lopt-sat" onclick="setLayer('sat')"><i class="fa-solid fa-satellite"></i> ESRI Satellite</button>
     <button class="layer-opt" id="lopt-voyager" onclick="setLayer('voyager')"><i class="fa-solid fa-map"></i> Voyager</button>
+    <button class="layer-opt" id="lopt-esri-topo" onclick="setLayer('esri-topo')"><i class="fa-solid fa-mountain"></i> ESRI Topo</button>
     <div class="layers-group-label">MapTiler <span style="font-size:0.58rem;color:var(--text-muted)">(API key required)</span></div>
     <button class="layer-opt" id="lopt-mt" onclick="setLayer('mt')"><i class="fa-solid fa-map"></i> MT Topo</button>
     <button class="layer-opt" id="lopt-mt-sat" onclick="setLayer('mt-sat')"><i class="fa-solid fa-satellite"></i> MT Satellite</button>
@@ -676,8 +677,9 @@ const map = L.map('map', { center: [46.5, 14.5], zoom: 7 });
 const layers = {
   osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
   topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',  { attribution: '© OpenTopoMap',  maxZoom: 17 }),
-  sat:     L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
-  voyager: L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
+  sat:       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
+  voyager:   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
+  'esri-topo': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
 };
 layers.osm.addTo(map);
 let currentLayer = 'osm';
