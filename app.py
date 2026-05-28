@@ -1,5 +1,6 @@
 from flask import Flask, render_template, jsonify, request
 import json, os, subprocess, glob, threading
+from pathlib import Path
 
 app = Flask(__name__)
 PRESETS_FILE = os.path.join(os.path.dirname(__file__), 'presets.json')
@@ -101,6 +102,53 @@ def kill_app():
         subprocess.run(['systemctl', '--user', 'stop', 'sonde.service'], capture_output=True)
     threading.Thread(target=do_stop, daemon=True).start()
     return jsonify({'ok': True})
+
+
+# ── GPS ───────────────────────────────────────────────────────────────────────
+
+import gps as _gps
+
+_gps.init(Path(__file__).resolve().parent)
+
+
+@app.route('/api/gps')
+def api_gps_get():
+    with _gps.gps_lock:
+        pos = dict(_gps.gps_state)
+        rt  = dict(_gps._gps_runtime)
+    cfg = _gps.load_config()
+    return jsonify({**cfg, **pos, **rt})
+
+
+@app.route('/api/gps', methods=['POST'])
+def api_gps_set():
+    data     = request.get_json(silent=True) or {}
+    enabled  = bool(data.get('enabled', False))
+    port     = str(data.get('port', '')).strip()
+    om_proxy = bool(data.get('om_proxy', False))
+    om_url   = str(data.get('om_url', 'http://localhost:8082')).strip()
+    cfg = _gps.load_config()
+    cfg['enabled']  = enabled
+    cfg['port']     = port
+    cfg['om_proxy'] = om_proxy
+    cfg['om_url']   = om_url
+    _gps.save_config(cfg)
+    if enabled:
+        if om_proxy and om_url:
+            _gps._start_proxy(om_url, fallback_port=port)
+        elif port:
+            _gps.gps_start(port)
+        else:
+            _gps.gps_stop()
+    else:
+        _gps.gps_stop()
+    return jsonify({'ok': True})
+
+
+@app.route('/api/gps/ports')
+def api_gps_ports():
+    return jsonify({'ports': _gps.list_ports()})
+
 
 if __name__ == '__main__':
     app.run(host='0.0.0.0', port=5100, debug=False)

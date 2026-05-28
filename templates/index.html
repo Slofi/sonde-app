@@ -58,6 +58,10 @@
     .header-btn:hover { color: var(--text); border-color: var(--accent-mid); }
     .header-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
     .header-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
+    .gps-dot { display:inline-block; width:8px; height:8px; border-radius:50%; vertical-align:middle; margin-right:3px; }
+    .gps-dot.fix { background:#4ade80; box-shadow:0 0 5px #4ade8099; }
+    .gps-dot.acquiring { background:#fbbf24; box-shadow:0 0 5px #fbbf2499; }
+    .gps-dot.off { background:#555; }
 
     .icon-btn {
       background: none; border: 1px solid var(--border); color: var(--text-muted);
@@ -490,6 +494,10 @@
     <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
   </button>
 
+  <button class="header-btn" id="gps-btn" onclick="gpsGoTo()" title="Go to GPS position">
+    <span id="gps-dot" class="gps-dot off"></span> GPS
+  </button>
+
   <div class="spacer"></div>
 
   <!-- Draw button -->
@@ -536,6 +544,29 @@
     <button class="burger-item danger" onclick="killApp()">
       <i class="fa-solid fa-power-off"></i> Stop App
     </button>
+    <hr class="burger-sep">
+    <div class="burger-setting">
+      <div class="burger-setting-label"><i class="fa-solid fa-location-dot"></i> GPS</div>
+      <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
+        <label style="font-size:0.72rem;color:var(--text-muted);cursor:pointer">
+          <input type="checkbox" id="gps-enabled" onchange="gpsToggle(this.checked)"> Enable
+        </label>
+      </div>
+      <div style="margin-top:4px">
+        <select id="gps-source-select" style="width:100%;font-size:0.72rem" onchange="gpsBurgerSourceChanged()">
+          <option value="proxy">OM proxy (primary)</option>
+          <option value="direct">Direct serial (fallback)</option>
+        </select>
+      </div>
+      <div id="gps-port-row" style="display:none;gap:6px;align-items:center;margin-top:4px">
+        <select id="gps-port-select" style="flex:1;font-size:0.72rem"></select>
+        <button class="burger-small-btn" onclick="gpsScanPorts()">Scan</button>
+      </div>
+      <div style="display:flex;gap:4px;margin-top:4px">
+        <button class="burger-small-btn" style="flex:1" onclick="gpsSavePort()">Save</button>
+      </div>
+      <div id="gps-status-text" style="font-size:0.68rem;color:var(--text-muted);margin-top:3px"></div>
+    </div>
     <hr class="burger-sep">
     <div class="burger-setting">
       <div class="burger-setting-label"><i class="fa-solid fa-magnifying-glass"></i> UI Zoom</div>
@@ -1827,6 +1858,138 @@ loadPresets();
   loadUiZoom();
   loadAccentColor();
 connectAutoRx();
+
+// ── GPS ────────────────────────────────────────────────────────────────────
+
+let _gpsState   = { fix: false, lat: null, lon: null, alt: null, sats: 0, sats_view: 0 };
+let _gpsEnabled = false;
+let _gpsMarker  = null;
+
+function _gpsUpdateDot() {
+  const dot = document.getElementById('gps-dot');
+  if (!dot) return;
+  dot.className = 'gps-dot ' + (_gpsEnabled
+    ? (_gpsState.fix ? 'fix' : 'acquiring')
+    : 'off');
+}
+
+function _gpsUpdateMarker() {
+  if (!_gpsState.fix || _gpsState.lat === null) {
+    if (_gpsMarker) { map.removeLayer(_gpsMarker); _gpsMarker = null; }
+    return;
+  }
+  const ll = [_gpsState.lat, _gpsState.lon];
+  if (!_gpsMarker) {
+    const icon = L.divIcon({
+      className: '',
+      html: '<div style="width:14px;height:14px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 6px #3b82f680"></div>',
+      iconSize: [14, 14], iconAnchor: [7, 7],
+    });
+    _gpsMarker = L.marker(ll, { icon, zIndexOffset: 1000 })
+      .bindPopup(() => {
+        const s = _gpsState;
+        return `<b>GPS Position</b><br>${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}<br>Alt: ${s.alt ?? '—'}m · Sats: ${s.sats}`;
+      })
+      .addTo(map);
+  } else {
+    _gpsMarker.setLatLng(ll);
+  }
+}
+
+async function _gpsPoll() {
+  try {
+    const r = await fetch('/api/gps');
+    const d = await r.json();
+    _gpsEnabled = d.enabled || false;
+    _gpsState   = { fix: d.fix, lat: d.lat, lon: d.lon, alt: d.alt, sats: d.sats, sats_view: d.sats_view };
+    _gpsUpdateDot();
+    _gpsUpdateMarker();
+    const cb = document.getElementById('gps-enabled');
+    if (cb && document.getElementById('burger-panel').classList.contains('open')) {
+      cb.checked = _gpsEnabled;
+      const txt = document.getElementById('gps-status-text');
+      if (txt) {
+        if (!_gpsEnabled) {
+          txt.textContent = '';
+        } else if (_gpsState.fix) {
+          txt.textContent = `Fix ✓ — ${Number(d.lat).toFixed(5)}, ${Number(d.lon).toFixed(5)} · Sats ${d.sats}`;
+        } else {
+          txt.textContent = `No fix — Sats in view: ${d.sats_view || 0}${d.error ? ' · ' + d.error : ''}`;
+        }
+      }
+    }
+  } catch (_) {}
+}
+
+function gpsGoTo() {
+  if (_gpsState.fix && _gpsState.lat !== null) {
+    map.setView([_gpsState.lat, _gpsState.lon], Math.max(map.getZoom(), 15));
+    if (_gpsMarker) _gpsMarker.openPopup();
+  }
+}
+
+async function gpsScanPorts() {
+  const sel = document.getElementById('gps-port-select');
+  if (!sel) return;
+  try {
+    const r = await fetch('/api/gps/ports');
+    const d = await r.json();
+    const prev = sel.value;
+    sel.innerHTML = '<option value="">— select port —</option>' +
+      (d.ports || []).map(p => `<option value="${p}">${p}</option>`).join('');
+    if (prev) sel.value = prev;
+  } catch (_) {}
+}
+
+function gpsBurgerSourceChanged() {
+  const v   = document.getElementById('gps-source-select').value;
+  const row = document.getElementById('gps-port-row');
+  if (row) row.style.display = (v === 'direct') ? 'flex' : 'none';
+}
+
+async function gpsToggle(checked) {
+  const d = await (await fetch('/api/gps')).json();
+  const src = document.getElementById('gps-source-select');
+  const om_proxy = src ? src.value === 'proxy' : (d.om_proxy || true);
+  await fetch('/api/gps', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled: checked, port: d.port || '', om_proxy, om_url: d.om_url || 'http://localhost:8082' }),
+  });
+  await _gpsPoll();
+}
+
+async function gpsSavePort() {
+  const port     = (document.getElementById('gps-port-select') || {}).value || '';
+  const enabled  = document.getElementById('gps-enabled').checked;
+  const src      = document.getElementById('gps-source-select');
+  const om_proxy = src ? src.value === 'proxy' : true;
+  await fetch('/api/gps', {
+    method: 'POST',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ enabled, port, om_proxy, om_url: 'http://localhost:8082' }),
+  });
+  await _gpsPoll();
+}
+
+async function initGps() {
+  const d = await (await fetch('/api/gps')).json();
+  _gpsEnabled = d.enabled || false;
+  const src = document.getElementById('gps-source-select');
+  if (src) {
+    src.value = (d.om_proxy !== false) ? 'proxy' : 'direct';
+    gpsBurgerSourceChanged();
+  }
+  await gpsScanPorts();
+  const sel = document.getElementById('gps-port-select');
+  if (sel && d.port) sel.value = d.port;
+  const cb = document.getElementById('gps-enabled');
+  if (cb) cb.checked = _gpsEnabled;
+  _gpsUpdateDot();
+  setInterval(_gpsPoll, 3000);
+}
+
+initGps();
 </script>
 <!-- Accent colour picker -->
 <div id="accent-picker-overlay" onclick="closeAccentPicker()">
