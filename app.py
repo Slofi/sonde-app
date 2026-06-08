@@ -42,6 +42,39 @@ def save_presets():
         json.dump(data, f, indent=2)
     return jsonify({'ok': True})
 
+STATION_CFG = os.path.expanduser('~/radiosonde_auto_rx/auto_rx/station.cfg')
+
+def _update_frequency_list(freq):
+    """Set frequency_list in station.cfg to [freq], or remove it if freq is None."""
+    with open(STATION_CFG) as f:
+        lines = f.readlines()
+    # Remove any active (uncommented) frequency_list line
+    lines = [l for l in lines if not (l.strip().startswith('frequency_list') and not l.strip().startswith('#'))]
+    if freq is not None:
+        for i, line in enumerate(lines):
+            if line.strip().startswith('max_freq'):
+                lines.insert(i + 1, f'frequency_list = [{float(freq):.3f}]\n')
+                break
+    with open(STATION_CFG, 'w') as f:
+        f.writelines(lines)
+
+@app.route('/api/preset/tune', methods=['POST'])
+def preset_tune():
+    data = request.get_json(silent=True) or {}
+    freq = data.get('freq')
+    try:
+        _update_frequency_list(freq)
+    except Exception as e:
+        return jsonify({'ok': False, 'error': str(e)}), 500
+    # Restart autorx if it's running so it picks up the new config
+    r = subprocess.run(['systemctl', '--user', 'is-active', 'autorx'], capture_output=True, text=True)
+    restarted = r.stdout.strip() == 'active'
+    if restarted:
+        def do_restart():
+            subprocess.run(['systemctl', '--user', 'restart', 'autorx'], capture_output=True)
+        threading.Thread(target=do_restart, daemon=True).start()
+    return jsonify({'ok': True, 'freq': freq, 'restarted': restarted})
+
 @app.route('/api/scan/start', methods=['POST'])
 def scan_start():
     subprocess.run(['systemctl', '--user', 'start', 'autorx'], capture_output=True)

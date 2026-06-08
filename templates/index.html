@@ -393,11 +393,14 @@
     .side-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 
     .preset-item {
-      display: flex; align-items: center; padding: 9px 14px; gap: 10px;
-      border-bottom: 1px solid var(--border); transition: background 0.1s;
+      display: flex; align-items: center; padding: 9px 14px 9px 11px; gap: 10px;
+      border-bottom: 1px solid var(--border); border-left: 3px solid transparent;
+      transition: background 0.1s, border-left-color 0.15s; cursor: pointer;
     }
     .preset-item:hover { background: var(--accent-faint); }
-    .preset-item.active-freq { background: rgba(61,220,132,0.06); }
+    .preset-item.active-freq { background: rgba(61,220,132,0.06); border-left-color: var(--green); }
+    .preset-item.selected-preset { border-left-color: var(--accent); }
+    .preset-item.selected-preset.active-freq { border-left-color: var(--accent); }
     .preset-country { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; min-width: 24px; }
     .preset-info { flex: 1; min-width: 0; }
     .preset-name { font-size: 0.82rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -1706,6 +1709,25 @@ async function releaseRTL() {
 // ===== PRESETS =====
 let presets = [];
 let editingId = null;
+let selectedPreset = null;
+
+async function selectPreset(id) {
+  const wasSelected = selectedPreset === id;
+  selectedPreset = wasSelected ? null : id;
+  renderPresets();
+  const p = presets.find(function(x) { return x.id === id; });
+  const freq = (!wasSelected && p) ? p.freq : null;
+  const res = await fetch('/api/preset/tune', {
+    method: 'POST',
+    headers: {'Content-Type': 'application/json'},
+    body: JSON.stringify({freq: freq}),
+  }).then(function(r) { return r.json(); }).catch(function() { return {}; });
+  if (freq !== null) {
+    showToast(parseFloat(freq).toFixed(3) + ' MHz' + (res.restarted ? ' — scan restarted' : ' — set (start Scan to apply)'));
+  } else {
+    showToast('Full scan mode' + (res.restarted ? ' — scan restarted' : ''));
+  }
+}
 
 async function loadPresets() {
   const r = await fetch('/api/presets');
@@ -1732,14 +1754,15 @@ function renderPresets() {
     const isActive = activeFreqs.has(parseFloat(p.freq).toFixed(2));
     const editOpen = editingId === p.id;
     const meta = [p.type, !p.verified ? '· unverified' : ''].filter(Boolean).join(' ');
-    return '<div class="preset-item' + (isActive ? ' active-freq' : '') + '">'
+    const selClass = (selectedPreset === p.id ? ' selected-preset' : '');
+    return '<div class="preset-item' + (isActive ? ' active-freq' : '') + selClass + '" onclick="selectPreset(\'' + p.id + '\')">'
       + '<div class="preset-country">' + p.country + '</div>'
       + '<div class="preset-info">'
       + '<div class="preset-name">' + p.name + '</div>'
       + '<div class="preset-meta">' + meta + '</div>'
       + '</div>'
       + '<div class="preset-freq">' + parseFloat(p.freq).toFixed(2) + '</div>'
-      + '<button class="preset-edit-btn" onclick="toggleEdit(\'' + p.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>'
+      + '<button class="preset-edit-btn" onclick="event.stopPropagation(); toggleEdit(\'' + p.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>'
       + '</div>'
       + '<div class="preset-edit-row' + (editOpen ? ' open' : '') + '" id="edit-' + p.id + '">'
       + '<div class="edit-fields">'
