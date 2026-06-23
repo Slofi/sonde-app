@@ -58,10 +58,6 @@
     .header-btn:hover { color: var(--text); border-color: var(--accent-mid); }
     .header-btn.active { background: var(--accent-bg); border-color: var(--accent-mid); color: var(--accent); }
     .header-btn.danger:hover { color: var(--red); border-color: rgba(255,80,80,0.4); }
-    .gps-dot { display:inline-block; width:8px; height:8px; border-radius:50%; vertical-align:middle; margin-right:3px; }
-    .gps-dot.fix { background:#4ade80; box-shadow:0 0 5px #4ade8099; }
-    .gps-dot.acquiring { background:#fbbf24; box-shadow:0 0 5px #fbbf2499; }
-    .gps-dot.off { background:#555; }
 
     .icon-btn {
       background: none; border: 1px solid var(--border); color: var(--text-muted);
@@ -393,14 +389,11 @@
     .side-list::-webkit-scrollbar-thumb { background: rgba(255,255,255,0.1); border-radius: 2px; }
 
     .preset-item {
-      display: flex; align-items: center; padding: 9px 14px 9px 11px; gap: 10px;
-      border-bottom: 1px solid var(--border); border-left: 3px solid transparent;
-      transition: background 0.1s, border-left-color 0.15s; cursor: pointer;
+      display: flex; align-items: center; padding: 9px 14px; gap: 10px;
+      border-bottom: 1px solid var(--border); transition: background 0.1s;
     }
     .preset-item:hover { background: var(--accent-faint); }
-    .preset-item.active-freq { background: rgba(61,220,132,0.06); border-left-color: var(--green); }
-    .preset-item.selected-preset { border-left-color: var(--accent); }
-    .preset-item.selected-preset.active-freq { border-left-color: var(--accent); }
+    .preset-item.active-freq { background: rgba(61,220,132,0.06); }
     .preset-country { font-size: 0.7rem; font-weight: 700; color: var(--text-muted); letter-spacing: 0.05em; min-width: 24px; }
     .preset-info { flex: 1; min-width: 0; }
     .preset-name { font-size: 0.82rem; font-weight: 500; color: var(--text); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
@@ -480,6 +473,11 @@
     .telem-label { font-size: 0.6rem; letter-spacing: 0.1em; text-transform: uppercase; color: var(--text-muted); margin-bottom: 4px; }
     .telem-val { font-size: 1rem; font-weight: 600; color: var(--text); font-variant-numeric: tabular-nums; }
     .telem-unit { font-size: 0.6rem; color: var(--text-muted); margin-left: 2px; }
+    .telem-field.chase { border-left: 2px solid rgba(74,158,255,0.35); }
+    #gps-status { display:flex; align-items:center; gap:6px; font-size:0.72rem; color:var(--text-muted); margin-left:14px; }
+    #gps-dot { width:8px; height:8px; border-radius:50%; background:var(--text-muted); transition:background 0.3s,box-shadow 0.3s; }
+    #gps-dot.on  { background:#4a9eff; box-shadow:0 0 7px rgba(74,158,255,0.6); }
+    #gps-dot.off { background:var(--text-muted); }
   </style>
 </head>
 <body>
@@ -490,15 +488,15 @@
     <div id="conn-dot"></div>
     <span id="conn-label">Connecting...</span>
   </div>
+  <div id="gps-status">
+    <div id="gps-dot"></div>
+    <span id="gps-label">No GPS</span>
+  </div>
   <button class="header-btn" id="scan-btn" onclick="scanToggle()">
     <i class="fa-solid fa-tower-broadcast"></i> Scan
   </button>
   <button class="header-btn danger" onclick="releaseRTL()">
     <i class="fa-solid fa-plug-circle-xmark"></i> Release RTL
-  </button>
-
-  <button class="header-btn" id="gps-btn" onclick="gpsGoTo()" title="Go to GPS position">
-    <span id="gps-dot" class="gps-dot off"></span> GPS
   </button>
 
   <div class="spacer"></div>
@@ -549,26 +547,12 @@
     </button>
     <hr class="burger-sep">
     <div class="burger-setting">
-      <div class="burger-setting-label"><i class="fa-solid fa-location-dot"></i> GPS</div>
-      <div style="display:flex;gap:6px;align-items:center;margin-top:4px">
-        <label style="font-size:0.72rem;color:var(--text-muted);cursor:pointer">
-          <input type="checkbox" id="gps-enabled" onchange="gpsToggle(this.checked)"> Enable
-        </label>
+      <div class="burger-setting-label"><i class="fa-solid fa-satellite-dish"></i> GPS Source</div>
+      <div style="display:flex;gap:6px;margin-top:4px">
+        <button class="burger-small-btn" id="gps-src-opstoc" onclick="setGpsSource('opstoc')">OPS-TOC</button>
+        <button class="burger-small-btn" id="gps-src-om"     onclick="setGpsSource('om')">OM</button>
+        <button class="burger-small-btn" id="gps-src-direct" onclick="setGpsSource('direct')">Direct</button>
       </div>
-      <div style="margin-top:4px">
-        <select id="gps-source-select" style="width:100%;font-size:0.72rem" onchange="gpsBurgerSourceChanged()">
-          <option value="proxy">OM proxy (primary)</option>
-          <option value="direct">Direct serial (fallback)</option>
-        </select>
-      </div>
-      <div id="gps-port-row" style="display:none;gap:6px;align-items:center;margin-top:4px">
-        <select id="gps-port-select" style="flex:1;font-size:0.72rem"></select>
-        <button class="burger-small-btn" onclick="gpsScanPorts()">Scan</button>
-      </div>
-      <div style="display:flex;gap:4px;margin-top:4px">
-        <button class="burger-small-btn" style="flex:1" onclick="gpsSavePort()">Save</button>
-      </div>
-      <div id="gps-status-text" style="font-size:0.68rem;color:var(--text-muted);margin-top:3px"></div>
     </div>
     <hr class="burger-sep">
     <div class="burger-setting">
@@ -593,8 +577,6 @@
     <button class="layer-opt active" id="lopt-osm" onclick="setLayer('osm')"><i class="fa-solid fa-map"></i> OpenStreetMap</button>
     <button class="layer-opt" id="lopt-topo" onclick="setLayer('topo')"><i class="fa-solid fa-mountain"></i> OpenTopoMap</button>
     <button class="layer-opt" id="lopt-sat" onclick="setLayer('sat')"><i class="fa-solid fa-satellite"></i> ESRI Satellite</button>
-    <button class="layer-opt" id="lopt-voyager" onclick="setLayer('voyager')"><i class="fa-solid fa-map"></i> Voyager</button>
-    <button class="layer-opt" id="lopt-esri-topo" onclick="setLayer('esri-topo')"><i class="fa-solid fa-mountain"></i> ESRI Topo</button>
     <div class="layers-group-label">MapTiler <span style="font-size:0.58rem;color:var(--text-muted)">(API key required)</span></div>
     <button class="layer-opt" id="lopt-mt" onclick="setLayer('mt')"><i class="fa-solid fa-map"></i> MT Topo</button>
     <button class="layer-opt" id="lopt-mt-sat" onclick="setLayer('mt-sat')"><i class="fa-solid fa-satellite"></i> MT Satellite</button>
@@ -670,6 +652,8 @@
     <div class="telem-field"><div class="telem-label">Humidity</div><div class="telem-val" id="t-hum">—<span class="telem-unit">%</span></div></div>
     <div class="telem-field"><div class="telem-label">Frequency</div><div class="telem-val" id="t-freq">—<span class="telem-unit">MHz</span></div></div>
     <div class="telem-field"><div class="telem-label">SNR</div><div class="telem-val" id="t-snr">—<span class="telem-unit">dB</span></div></div>
+    <div class="telem-field chase"><div class="telem-label">Distance</div><div class="telem-val" id="t-dist">—</div></div>
+    <div class="telem-field chase"><div class="telem-label">Bearing</div><div class="telem-val" id="t-bearing">—</div></div>
   </div>
 </div>
 
@@ -680,9 +664,7 @@ const map = L.map('map', { center: [46.5, 14.5], zoom: 7 });
 const layers = {
   osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
   topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',  { attribution: '© OpenTopoMap',  maxZoom: 17 }),
-  sat:       L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
-  voyager:   L.tileLayer('https://{s}.basemaps.cartocdn.com/rastertiles/voyager/{z}/{x}/{y}{r}.png', { attribution: '© OpenStreetMap © CARTO', maxZoom: 19 }),
-  'esri-topo': L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Topo_Map/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
+  sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
 };
 layers.osm.addTo(map);
 let currentLayer = 'osm';
@@ -814,6 +796,17 @@ function saveMtKey() {
 const sondes = {};
 let selectedSonde = null;
 
+// ── GPS / chase ──
+const GPS_URL = 'http://localhost:5100/api/gps';
+let ownPos = null;
+let ownMarker = null;
+let chaseLine = null;
+const ownIcon = L.divIcon({
+  className: '',
+  html: '<div style="width:14px;height:14px;border-radius:50%;background:#4a9eff;border:2px solid #fff;box-shadow:0 0 10px rgba(74,158,255,0.7)"></div>',
+  iconSize: [14,14], iconAnchor: [7,7],
+});
+
 const COLORS = ['#deaf4a','#56b6c2','#c678dd','#98c379','#e06c75','#61afef','#d19a66','#e5c07b'];
 function sondeColor(id) {
   let h = 0; for (const c of id) h = (h * 31 + c.charCodeAt(0)) & 0xffffffff;
@@ -870,7 +863,7 @@ function updateSonde(data) {
   }
 
   renderSondeList();
-  if (selectedSonde === id) updateTelemBar(data);
+  if (selectedSonde === id) { updateTelemBar(data); updateChase(); }
 }
 
 function selectSonde(id) {
@@ -880,6 +873,7 @@ function selectSonde(id) {
     updateTelemBar(sondes[id].telem);
     map.panTo([sondes[id].telem.lat, sondes[id].telem.lon]);
   }
+  updateChase();
 }
 
 function fmt(v, dec) {
@@ -996,15 +990,57 @@ async function loadVersion() {
 }
 
 // ===== RESTART / KILL =====
+function _showSplash(msg, {cmd = null, dashboard = false} = {}) {
+  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+  const d = document.createElement('div');
+  d.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif';
+  const cmdHtml = cmd ? `<div style="font-size:0.78rem;color:#555;margin-bottom:6px">Or run:</div><code onclick="navigator.clipboard.writeText(this.textContent)" title="Click to copy" style="display:inline-block;font-size:0.78rem;background:#111722;border:1px solid rgba(255,255,255,0.08);padding:6px 14px;border-radius:8px;cursor:pointer;user-select:all;color:#aaa">${cmd}</code>` : '';
+  const dashHtml = dashboard ? '<div style="font-size:0.78rem;color:#555;margin-top:14px">Or launch from the Dashboard.</div>' : '';
+  d.innerHTML = `<div style="text-align:center;padding:32px;max-width:440px">
+    <div style="font-size:clamp(2.5rem,8vw,5.5rem);font-weight:700;color:var(--accent,#e8b04f);letter-spacing:0.04em;line-height:1;margin-bottom:28px">Sonde</div>
+    <div style="font-size:0.95rem;color:#ccc;letter-spacing:0.04em;margin-bottom:${cmd ? '18px' : '0'}">${esc(msg)}</div>
+    ${cmdHtml}${dashHtml}
+  </div>`;
+  document.body.appendChild(d);
+}
+function _confirmAction({ title, message, confirmText, danger = false }) {
+  return new Promise(resolve => {
+    const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
+    const overlay = document.createElement('div');
+    overlay.style.cssText = 'position:fixed;inset:0;background:rgba(0,0,0,0.68);z-index:9998;display:flex;align-items:center;justify-content:center;padding:20px;font-family:system-ui,sans-serif';
+    overlay.innerHTML = `<div style="width:min(360px,calc(100vw - 36px));background:#111722;border:1px solid rgba(255,255,255,0.12);border-radius:14px;box-shadow:0 14px 48px rgba(0,0,0,0.55);overflow:hidden">
+      <div style="padding:18px 18px 12px;border-bottom:1px solid rgba(255,255,255,0.08)">
+        <div style="font-size:0.82rem;text-transform:uppercase;letter-spacing:0.08em;color:var(--accent,#e8b04f);font-weight:700">Sonde</div>
+        <div style="margin-top:8px;font-size:1.05rem;color:#e8f0ff;font-weight:650">${esc(title)}</div>
+      </div>
+      <div style="padding:16px 18px;color:#7a8aaa;font-size:0.9rem;line-height:1.45">${esc(message)}</div>
+      <div style="display:flex;gap:10px;padding:0 18px 18px">
+        <button data-action="cancel" style="flex:1;background:none;border:1px solid rgba(255,255,255,0.12);border-radius:7px;color:#7a8aaa;padding:10px 14px;font-size:0.9rem;cursor:pointer">Cancel</button>
+        <button data-action="confirm" style="flex:1;background:none;border:1px solid ${danger ? 'rgba(255,80,80,0.4)' : 'rgba(232,176,79,0.35)'};border-radius:7px;color:${danger ? '#ff6060' : '#e8b04f'};padding:10px 14px;font-size:0.9rem;cursor:pointer">${esc(confirmText)}</button>
+      </div>
+    </div>`;
+    document.body.appendChild(overlay);
+    const finish = value => { overlay.remove(); document.removeEventListener('keydown', onKey); resolve(value); };
+    const onKey = e => { if (e.key === 'Escape') finish(false); if (e.key === 'Enter') finish(true); };
+    overlay.addEventListener('click', e => {
+      if (e.target === overlay) finish(false);
+      const btn = e.target.closest('button[data-action]');
+      if (!btn) return;
+      finish(btn.dataset.action === 'confirm');
+    });
+    document.addEventListener('keydown', onKey);
+  });
+}
 async function restartApp() {
   closeBurger();
-  showToast('Restarting...');
+  _showSplash('Restarting…');
   await fetch('/api/restart', { method: 'POST' });
 }
 async function killApp() {
   closeBurger();
-  const ok = confirm('Stop the Sonde App service?');
+  const ok = await _confirmAction({ title: 'Stop Sonde App?', message: 'The Sonde App service will stop. Start it back up from the Dashboard.', confirmText: 'Shut down', danger: true });
   if (!ok) return;
+  _showSplash('Sonde stopped.', {cmd: 'systemctl --user start sonde', dashboard: true});
   await fetch('/api/kill', { method: 'POST' });
 }
 
@@ -1709,25 +1745,6 @@ async function releaseRTL() {
 // ===== PRESETS =====
 let presets = [];
 let editingId = null;
-let selectedPreset = null;
-
-async function selectPreset(id) {
-  const wasSelected = selectedPreset === id;
-  selectedPreset = wasSelected ? null : id;
-  renderPresets();
-  const p = presets.find(function(x) { return x.id === id; });
-  const freq = (!wasSelected && p) ? p.freq : null;
-  const res = await fetch('/api/preset/tune', {
-    method: 'POST',
-    headers: {'Content-Type': 'application/json'},
-    body: JSON.stringify({freq: freq}),
-  }).then(function(r) { return r.json(); }).catch(function() { return {}; });
-  if (freq !== null) {
-    showToast(parseFloat(freq).toFixed(3) + ' MHz' + (res.restarted ? ' — scan restarted' : ' — set (start Scan to apply)'));
-  } else {
-    showToast('Full scan mode' + (res.restarted ? ' — scan restarted' : ''));
-  }
-}
 
 async function loadPresets() {
   const r = await fetch('/api/presets');
@@ -1754,15 +1771,14 @@ function renderPresets() {
     const isActive = activeFreqs.has(parseFloat(p.freq).toFixed(2));
     const editOpen = editingId === p.id;
     const meta = [p.type, !p.verified ? '· unverified' : ''].filter(Boolean).join(' ');
-    const selClass = (selectedPreset === p.id ? ' selected-preset' : '');
-    return '<div class="preset-item' + (isActive ? ' active-freq' : '') + selClass + '" onclick="selectPreset(\'' + p.id + '\')">'
+    return '<div class="preset-item' + (isActive ? ' active-freq' : '') + '">'
       + '<div class="preset-country">' + p.country + '</div>'
       + '<div class="preset-info">'
       + '<div class="preset-name">' + p.name + '</div>'
       + '<div class="preset-meta">' + meta + '</div>'
       + '</div>'
       + '<div class="preset-freq">' + parseFloat(p.freq).toFixed(2) + '</div>'
-      + '<button class="preset-edit-btn" onclick="event.stopPropagation(); toggleEdit(\'' + p.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>'
+      + '<button class="preset-edit-btn" onclick="toggleEdit(\'' + p.id + '\')" title="Edit"><i class="fa-solid fa-pen"></i></button>'
       + '</div>'
       + '<div class="preset-edit-row' + (editOpen ? ' open' : '') + '" id="edit-' + p.id + '">'
       + '<div class="edit-fields">'
@@ -1824,6 +1840,101 @@ function addPreset() {
   if (el) el.scrollIntoView({ block: 'nearest' });
 }
 
+
+// ===== GPS POSITION =====
+function calcBearing(from, to) {
+  const toR = Math.PI / 180;
+  const dLng = (to.lon - from.lon) * toR;
+  const y = Math.sin(dLng) * Math.cos(to.lat * toR);
+  const x = Math.cos(from.lat * toR) * Math.sin(to.lat * toR)
+           - Math.sin(from.lat * toR) * Math.cos(to.lat * toR) * Math.cos(dLng);
+  return (Math.atan2(y, x) * 180 / Math.PI + 360) % 360;
+}
+function bearingCard(deg) {
+  return ['N','NE','E','SE','S','SW','W','NW'][Math.round(deg / 45) % 8];
+}
+function updateChase() {
+  const dot   = document.getElementById('gps-dot');
+  const label = document.getElementById('gps-label');
+  const distEl    = document.getElementById('t-dist');
+  const bearingEl = document.getElementById('t-bearing');
+  if (!ownPos || !selectedSonde || !sondes[selectedSonde]) {
+    if (chaseLine) { map.removeLayer(chaseLine); chaseLine = null; }
+    if (distEl)    distEl.innerHTML    = ownPos ? '—' : '<span style="color:var(--text-muted);font-size:0.7rem">No GPS</span>';
+    if (bearingEl) bearingEl.innerHTML = '—';
+    return;
+  }
+  const s = sondes[selectedSonde].telem;
+  const dist = haversine(ownPos, {lat: s.lat, lon: s.lon});
+  const brg  = calcBearing(ownPos, {lat: s.lat, lon: s.lon});
+  distEl.innerHTML    = fmtDist(dist);
+  bearingEl.innerHTML = fmt(brg, 0) + '°<span class="telem-unit">' + bearingCard(brg) + '</span>';
+  const pts = [[ownPos.lat, ownPos.lon], [s.lat, s.lon]];
+  if (!chaseLine) {
+    chaseLine = L.polyline(pts, { color: '#4a9eff', weight: 2, opacity: 0.55, dashArray: '6 4' }).addTo(map);
+  } else {
+    chaseLine.setLatLngs(pts);
+  }
+}
+
+// ── GPS source management ──
+async function loadGpsConfig() {
+  try {
+    const r = await fetch('/api/gps/config');
+    const d = await r.json();
+    _applyGpsSrcButtons(d.source || 'opstoc');
+  } catch(e) {}
+}
+async function setGpsSource(src) {
+  try {
+    await fetch('/api/gps/config', {
+      method: 'POST',
+      headers: {'Content-Type': 'application/json'},
+      body: JSON.stringify({source: src}),
+    });
+    _applyGpsSrcButtons(src);
+    pollGps();
+  } catch(e) {}
+}
+function _applyGpsSrcButtons(src) {
+  ['opstoc','om','direct'].forEach(s => {
+    const btn = document.getElementById('gps-src-' + s);
+    if (!btn) return;
+    btn.style.background = src === s ? 'var(--accent)' : '';
+    btn.style.color      = src === s ? '#111' : '';
+  });
+}
+
+async function pollGps() {
+  const dot   = document.getElementById('gps-dot');
+  const label = document.getElementById('gps-label');
+  try {
+    const r = await fetch(GPS_URL, { signal: AbortSignal.timeout(3000) });
+    const d = await r.json();
+    if (d.fix && d.lat != null && d.lon != null) {
+      ownPos = { lat: d.lat, lon: d.lon, alt: d.alt };
+      if (!ownMarker) {
+        ownMarker = L.marker([d.lat, d.lon], { icon: ownIcon, zIndexOffset: 1000, title: 'Your position' }).addTo(map);
+        ownMarker.bindPopup('<b style="color:#4a9eff">Your position</b>');
+      } else {
+        ownMarker.setLatLng([d.lat, d.lon]);
+      }
+      dot.className   = 'on';
+      label.textContent = (d.sats != null ? d.sats + ' sats' : 'GPS fix');
+      updateChase();
+    } else {
+      ownPos = null;
+      dot.className   = 'off';
+      label.textContent = d.enabled === false ? 'GPS off' : 'No fix';
+      updateChase();
+    }
+  } catch(e) {
+    dot.className   = 'off';
+    label.textContent = 'OPS-TOC?';
+    updateChase();
+  }
+}
+
 // ===== SOCKET.IO → auto_rx =====
 function connectAutoRx() {
   const dot   = document.getElementById('conn-dot');
@@ -1883,138 +1994,9 @@ loadPresets();
   loadUiZoom();
   loadAccentColor();
 connectAutoRx();
-
-// ── GPS ────────────────────────────────────────────────────────────────────
-
-let _gpsState   = { fix: false, lat: null, lon: null, alt: null, sats: 0, sats_view: 0 };
-let _gpsEnabled = false;
-let _gpsMarker  = null;
-
-function _gpsUpdateDot() {
-  const dot = document.getElementById('gps-dot');
-  if (!dot) return;
-  dot.className = 'gps-dot ' + (_gpsEnabled
-    ? (_gpsState.fix ? 'fix' : 'acquiring')
-    : 'off');
-}
-
-function _gpsUpdateMarker() {
-  if (!_gpsState.fix || _gpsState.lat === null) {
-    if (_gpsMarker) { map.removeLayer(_gpsMarker); _gpsMarker = null; }
-    return;
-  }
-  const ll = [_gpsState.lat, _gpsState.lon];
-  if (!_gpsMarker) {
-    const icon = L.divIcon({
-      className: '',
-      html: '<div style="width:14px;height:14px;background:#3b82f6;border:2px solid #fff;border-radius:50%;box-shadow:0 0 6px #3b82f680"></div>',
-      iconSize: [14, 14], iconAnchor: [7, 7],
-    });
-    _gpsMarker = L.marker(ll, { icon, zIndexOffset: 1000 })
-      .bindPopup(() => {
-        const s = _gpsState;
-        return `<b>GPS Position</b><br>${s.lat.toFixed(6)}, ${s.lon.toFixed(6)}<br>Alt: ${s.alt ?? '—'}m · Sats: ${s.sats}`;
-      })
-      .addTo(map);
-  } else {
-    _gpsMarker.setLatLng(ll);
-  }
-}
-
-async function _gpsPoll() {
-  try {
-    const r = await fetch('/api/gps');
-    const d = await r.json();
-    _gpsEnabled = d.enabled || false;
-    _gpsState   = { fix: d.fix, lat: d.lat, lon: d.lon, alt: d.alt, sats: d.sats, sats_view: d.sats_view };
-    _gpsUpdateDot();
-    _gpsUpdateMarker();
-    const cb = document.getElementById('gps-enabled');
-    if (cb && document.getElementById('burger-panel').classList.contains('open')) {
-      cb.checked = _gpsEnabled;
-      const txt = document.getElementById('gps-status-text');
-      if (txt) {
-        if (!_gpsEnabled) {
-          txt.textContent = '';
-        } else if (_gpsState.fix) {
-          txt.textContent = `Fix ✓ — ${Number(d.lat).toFixed(5)}, ${Number(d.lon).toFixed(5)} · Sats ${d.sats}`;
-        } else {
-          txt.textContent = `No fix — Sats in view: ${d.sats_view || 0}${d.error ? ' · ' + d.error : ''}`;
-        }
-      }
-    }
-  } catch (_) {}
-}
-
-function gpsGoTo() {
-  if (_gpsState.fix && _gpsState.lat !== null) {
-    map.setView([_gpsState.lat, _gpsState.lon], Math.max(map.getZoom(), 15));
-    if (_gpsMarker) _gpsMarker.openPopup();
-  }
-}
-
-async function gpsScanPorts() {
-  const sel = document.getElementById('gps-port-select');
-  if (!sel) return;
-  try {
-    const r = await fetch('/api/gps/ports');
-    const d = await r.json();
-    const prev = sel.value;
-    sel.innerHTML = '<option value="">— select port —</option>' +
-      (d.ports || []).map(p => `<option value="${p}">${p}</option>`).join('');
-    if (prev) sel.value = prev;
-  } catch (_) {}
-}
-
-function gpsBurgerSourceChanged() {
-  const v   = document.getElementById('gps-source-select').value;
-  const row = document.getElementById('gps-port-row');
-  if (row) row.style.display = (v === 'direct') ? 'flex' : 'none';
-}
-
-async function gpsToggle(checked) {
-  const d = await (await fetch('/api/gps')).json();
-  const src = document.getElementById('gps-source-select');
-  const om_proxy = src ? src.value === 'proxy' : (d.om_proxy || true);
-  await fetch('/api/gps', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled: checked, port: d.port || '', om_proxy, om_url: d.om_url || 'http://localhost:8082' }),
-  });
-  await _gpsPoll();
-}
-
-async function gpsSavePort() {
-  const port     = (document.getElementById('gps-port-select') || {}).value || '';
-  const enabled  = document.getElementById('gps-enabled').checked;
-  const src      = document.getElementById('gps-source-select');
-  const om_proxy = src ? src.value === 'proxy' : true;
-  await fetch('/api/gps', {
-    method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ enabled, port, om_proxy, om_url: 'http://localhost:8082' }),
-  });
-  await _gpsPoll();
-}
-
-async function initGps() {
-  const d = await (await fetch('/api/gps')).json();
-  _gpsEnabled = d.enabled || false;
-  const src = document.getElementById('gps-source-select');
-  if (src) {
-    src.value = (d.om_proxy !== false) ? 'proxy' : 'direct';
-    gpsBurgerSourceChanged();
-  }
-  await gpsScanPorts();
-  const sel = document.getElementById('gps-port-select');
-  if (sel && d.port) sel.value = d.port;
-  const cb = document.getElementById('gps-enabled');
-  if (cb) cb.checked = _gpsEnabled;
-  _gpsUpdateDot();
-  setInterval(_gpsPoll, 3000);
-}
-
-initGps();
+  loadGpsConfig();
+  pollGps();
+  setInterval(pollGps, 5000);
 </script>
 <!-- Accent colour picker -->
 <div id="accent-picker-overlay" onclick="closeAccentPicker()">
