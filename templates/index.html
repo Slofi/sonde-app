@@ -478,6 +478,39 @@
     #gps-dot { width:8px; height:8px; border-radius:50%; background:var(--text-muted); transition:background 0.3s,box-shadow 0.3s; }
     #gps-dot.on  { background:#4a9eff; box-shadow:0 0 7px rgba(74,158,255,0.6); }
     #gps-dot.off { background:var(--text-muted); }
+    /* ── Service splash ── */
+    @keyframes ss-fadein{from{opacity:0}to{opacity:1}}
+    @keyframes ss-dot-pulse{0%,100%{transform:scale(.5);opacity:.2}50%{transform:scale(1);opacity:1}}
+    @keyframes ss-track-pulse{0%,100%{opacity:0.15;transform:scale(0.7)}50%{opacity:1;transform:scale(1)}}
+    .service-splash{position:fixed;inset:0;z-index:10000;background:var(--bg);background-image:repeating-linear-gradient(0deg,transparent 0,transparent 3px,rgba(0,0,0,.05) 3px,rgba(0,0,0,.05) 4px);display:grid;place-items:center;animation:ss-fadein .35s ease}
+    .service-splash[hidden]{display:none!important}
+    .ss-panel{display:flex;flex-direction:column;align-items:center;text-align:center;padding:0 24px}
+    .ss-wordmark{font-size:1.5rem;font-weight:700;letter-spacing:.12em;color:var(--accent);line-height:1;margin-bottom:6px}
+    .ss-tagline{font-size:.7rem;color:var(--text-muted);letter-spacing:.1em;text-transform:uppercase;margin-bottom:28px}
+    .ss-status-wrap{margin-bottom:18px}
+    .ss-status{font-size:.68rem;letter-spacing:.18em;text-transform:uppercase;color:var(--text-muted)}
+    .ss-anim{margin-bottom:20px}
+    .ss-dots{display:flex;gap:8px}
+    .ss-dot{width:6px;height:6px;border-radius:50%;animation:ss-dot-pulse 1.2s ease-in-out infinite}
+    .ss-dot:nth-child(2){animation-delay:.22s}.ss-dot:nth-child(3){animation-delay:.44s}.ss-dot:nth-child(4){animation-delay:.66s}
+    .service-splash[data-mode="shutdown"] .ss-dot{background:var(--red)}
+    .service-splash[data-mode="restart"]  .ss-dot{background:var(--accent)}
+    .service-splash[data-mode="shutdown"] .ss-txt-restart{display:none}
+    .service-splash[data-mode="restart"]  .ss-txt-shutdown{display:none}
+    .service-splash[data-mode="restart"] .ss-hint{visibility:hidden}
+    .ss-hint{text-align:center}
+    .ss-hint-label{font-size:.65rem;color:var(--text-muted);letter-spacing:.08em;text-transform:uppercase;margin-bottom:6px}
+    .ss-hint-cmd{display:inline-block;font-size:.72rem;background:rgba(255,255,255,.04);border:1px solid rgba(255,255,255,.08);padding:5px 12px;border-radius:6px;cursor:pointer;user-select:all;color:var(--accent);font-family:monospace;letter-spacing:.03em}
+    /* Sonde: ascending track dots */
+    .ss-track{position:relative;width:66px;height:44px;margin-bottom:22px}
+    .ss-track-dot{position:absolute;width:6px;height:6px;background:var(--accent);border-radius:50%;animation:ss-track-pulse 1.8s ease-in-out infinite}
+    .ss-track-dot:nth-child(1){left:4px;bottom:4px;animation-delay:0s}
+    .ss-track-dot:nth-child(2){left:16px;bottom:12px;animation-delay:.22s}
+    .ss-track-dot:nth-child(3){left:30px;bottom:22px;animation-delay:.44s}
+    .ss-track-dot:nth-child(4){left:44px;bottom:32px;animation-delay:.66s}
+    .ss-track-dot:nth-child(5){left:58px;bottom:40px;animation-delay:.88s}
+    .service-splash[data-mode="shutdown"] .ss-anim{display:none}
+    @media(prefers-reduced-motion:reduce){.ss-dot,.ss-track-dot{animation:none}}
   </style>
 </head>
 <body>
@@ -990,18 +1023,11 @@ async function loadVersion() {
 }
 
 // ===== RESTART / KILL =====
-function _showSplash(msg, {cmd = null, dashboard = false} = {}) {
-  const esc = s => String(s).replace(/&/g,'&amp;').replace(/</g,'&lt;').replace(/>/g,'&gt;');
-  const d = document.createElement('div');
-  d.style.cssText = 'position:fixed;inset:0;background:#000;z-index:9999;display:flex;align-items:center;justify-content:center;font-family:system-ui,sans-serif';
-  const cmdHtml = cmd ? `<div style="font-size:0.78rem;color:#555;margin-bottom:6px">Or run:</div><code onclick="navigator.clipboard.writeText(this.textContent)" title="Click to copy" style="display:inline-block;font-size:0.78rem;background:#111722;border:1px solid rgba(255,255,255,0.08);padding:6px 14px;border-radius:8px;cursor:pointer;user-select:all;color:#aaa">${cmd}</code>` : '';
-  const dashHtml = dashboard ? '<div style="font-size:0.78rem;color:#555;margin-top:14px">Or launch from the Dashboard.</div>' : '';
-  d.innerHTML = `<div style="text-align:center;padding:32px;max-width:440px">
-    <div style="font-size:clamp(2.5rem,8vw,5.5rem);font-weight:700;color:var(--accent,#e8b04f);letter-spacing:0.04em;line-height:1;margin-bottom:28px">Sonde</div>
-    <div style="font-size:0.95rem;color:#ccc;letter-spacing:0.04em;margin-bottom:${cmd ? '18px' : '0'}">${esc(msg)}</div>
-    ${cmdHtml}${dashHtml}
-  </div>`;
-  document.body.appendChild(d);
+function showServiceSplash(mode) {
+  const el = document.getElementById('service-splash');
+  if (!el) return;
+  el.dataset.mode = mode || 'restart';
+  el.removeAttribute('hidden');
 }
 function _confirmAction({ title, message, confirmText, danger = false }) {
   return new Promise(resolve => {
@@ -1033,14 +1059,14 @@ function _confirmAction({ title, message, confirmText, danger = false }) {
 }
 async function restartApp() {
   closeBurger();
-  _showSplash('Restarting…');
+  showServiceSplash('restart');
   await fetch('/api/restart', { method: 'POST' });
 }
 async function killApp() {
   closeBurger();
   const ok = await _confirmAction({ title: 'Stop Sonde App?', message: 'The Sonde App service will stop. Start it back up from the Dashboard.', confirmText: 'Shut down', danger: true });
   if (!ok) return;
-  _showSplash('Sonde stopped.', {cmd: 'systemctl --user start sonde', dashboard: true});
+  showServiceSplash('shutdown');
   await fetch('/api/kill', { method: 'POST' });
 }
 
@@ -2011,6 +2037,31 @@ connectAutoRx();
     <div class="accent-picker-btns">
       <button onclick="closeAccentPicker()">Cancel</button>
       <button class="primary" onclick="confirmAccentColor()">Apply</button>
+    </div>
+  </div>
+</div>
+<div id="service-splash" class="service-splash" hidden data-mode="restart">
+  <div class="ss-panel">
+    <div class="ss-track">
+      <div class="ss-track-dot"></div>
+      <div class="ss-track-dot"></div>
+      <div class="ss-track-dot"></div>
+      <div class="ss-track-dot"></div>
+      <div class="ss-track-dot"></div>
+    </div>
+    <div class="ss-wordmark">SONDE</div>
+    <div class="ss-tagline">Balloon Tracker</div>
+    <div class="ss-status-wrap"><div class="ss-status">
+      <span class="ss-txt-shutdown">OFFLINE</span>
+      <span class="ss-txt-restart">RESTARTING</span>
+    </div></div>
+    <div class="ss-anim"><div class="ss-dots">
+      <div class="ss-dot"></div><div class="ss-dot"></div>
+      <div class="ss-dot"></div><div class="ss-dot"></div>
+    </div></div>
+    <div class="ss-hint">
+      <div class="ss-hint-label">To restart</div>
+      <code class="ss-hint-cmd" onclick="navigator.clipboard.writeText(this.textContent)" title="Click to copy">systemctl --user restart sonde</code>
     </div>
   </div>
 </div>
