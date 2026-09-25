@@ -2,4 +2,5 @@ venv/
 __pycache__/
 *.pyc
 presets.json
+gps_config.json
 *.egg-info/
