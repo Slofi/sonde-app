@@ -5,3 +5,5 @@ presets.json
 gps_config.json
 *.egg-info/
 sonde.md
+# Project overview card (Syncthing-delivered) - keep on disk, never commit, never delete
+sonde-overview.md
