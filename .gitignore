@@ -4,3 +4,4 @@ __pycache__/
 presets.json
 gps_config.json
 *.egg-info/
+sonde.md
