@@ -110,13 +110,24 @@ def save_presets():
 STATION_CFG = os.path.expanduser('~/radiosonde_auto_rx/auto_rx/station.cfg')
 
 def _update_frequency_list(freq):
+    """Set only_scan in station.cfg to [freq], or clear it if freq is None."""
     with open(STATION_CFG) as f:
         lines = f.readlines()
+    # Remove any stale frequency_list line (wrong key used in earlier version)
     lines = [l for l in lines if not (l.strip().startswith('frequency_list') and not l.strip().startswith('#'))]
-    if freq is not None:
+    # Update only_scan line in place
+    new_val = f'[{float(freq):.3f}]' if freq is not None else '[]'
+    updated = False
+    for i, line in enumerate(lines):
+        if line.strip().startswith('only_scan') and not line.strip().startswith('#'):
+            lines[i] = f'only_scan = {new_val}\n'
+            updated = True
+            break
+    if not updated:
+        # only_scan line missing — insert after max_freq
         for i, line in enumerate(lines):
             if line.strip().startswith('max_freq'):
-                lines.insert(i + 1, f'frequency_list = [{float(freq):.3f}]\n')
+                lines.insert(i + 1, f'only_scan = {new_val}\n')
                 break
     with open(STATION_CFG, 'w') as f:
         f.writelines(lines)
