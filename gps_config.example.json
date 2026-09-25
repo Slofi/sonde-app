@@ -1,0 +1,6 @@
+{
+  "enabled": true,
+  "port": "/dev/ttyACM2",
+  "om_proxy": true,
+  "om_url": "http://localhost:8082"
+}
