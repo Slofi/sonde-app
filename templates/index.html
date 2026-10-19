@@ -512,6 +512,21 @@
     .service-splash[data-mode="shutdown"] .ss-anim{display:none}
     @media(prefers-reduced-motion:reduce){.ss-dot,.ss-track-dot{animation:none}}
   </style>
+<style>
+.leaflet-bottom.leaflet-right { width: 100%; }
+.leaflet-control-attribution {
+  max-width: calc(100% - 70px);
+  white-space: nowrap;
+  overflow-x: auto;
+  overflow-y: hidden;
+  overscroll-behavior-x: contain;
+  -webkit-overflow-scrolling: touch;
+  scrollbar-width: none;
+  -ms-overflow-style: none;
+  line-height: 1.25;
+}
+.leaflet-control-attribution::-webkit-scrollbar { display: none; }
+</style>
 </head>
 <body>
 
@@ -699,9 +714,17 @@ map.attributionControl.setPrefix(false);
 const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const OPENTOPO_ATTR = OSM_ATTR + ', © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)';
 const ESRI_SAT_ATTR = 'Esri, Vantor, Earthstar Geographics, and the GIS User Community';
-const ESRI_TOPO_ATTR = 'Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), (c) OpenStreetMap contributors, and the GIS User Community';
-const ESRI_STREETS_ATTR = 'Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community';
+const ESRI_TOPO_ATTR = 'Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS User Community <span title="Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), (c) OpenStreetMap contributors, and the GIS User Community">ⓘ</span>';
+const ESRI_STREETS_ATTR = 'Esri, HERE, Garmin, © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors, and the GIS User Community <span title="Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community">ⓘ</span>';
 const CARTO_ATTR = OSM_ATTR + ' © <a href="https://carto.com/attributions">CARTO</a>';
+
+function compactCredit(credit) {
+  if (!credit) return credit;
+  if (/increment P Corp\.|GEBCO|Kadaster NL/.test(credit)) return ESRI_TOPO_ATTR;
+  if (/INCREMENT P|NRCan|NGCC/.test(credit)) return ESRI_STREETS_ATTR;
+  return credit;
+}
+
 const TF_ATTR = 'Maps © <a href="https://www.thunderforest.com/">Thunderforest</a>, Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 const MT_ATTR = '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
@@ -832,7 +855,7 @@ function setLocalLayer(id, name) {
   // Credit derived from the pack's TileJSON source; an old Esri Topo pack with no source
   // metadata still gets the service credit because its id/name says what it is.
   const storedAttr = localAttributions[id] || '';
-  const attr = storedAttr || (/esri[-_ ]?topo/i.test(id + ' ' + name) ? ESRI_TOPO_ATTR : '');
+  const attr = compactCredit(storedAttr) || (/esri[-_ ]?topo/i.test(id + ' ' + name) ? ESRI_TOPO_ATTR : '');
   localLayer = L.tileLayer(MBTILESERVER + '/services/' + id + '/tiles/{z}/{x}/{y}.png', {
     attribution: 'Local · ' + name + (attr ? ' · ' + attr : ''), maxZoom: 18,
   });
