@@ -693,11 +693,22 @@
 <script>
 // ===== MAP =====
 const map = L.map('map', { center: [46.5, 14.5], zoom: 7 });
+// Provider credits only; the Leaflet flag/wordmark is courtesy, not a licence term.
+map.attributionControl.setPrefix(false);
+
+const OSM_ATTR = '© <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const OPENTOPO_ATTR = OSM_ATTR + ', © <a href="https://opentopomap.org">OpenTopoMap</a> (CC-BY-SA)';
+const ESRI_SAT_ATTR = 'Esri, Vantor, Earthstar Geographics, and the GIS User Community';
+const ESRI_TOPO_ATTR = 'Esri, HERE, Garmin, Intermap, increment P Corp., GEBCO, USGS, FAO, NPS, NRCAN, GeoBase, IGN, Kadaster NL, Ordnance Survey, Esri Japan, METI, Esri China (Hong Kong), (c) OpenStreetMap contributors, and the GIS User Community';
+const ESRI_STREETS_ATTR = 'Esri, HERE, Garmin, USGS, Intermap, INCREMENT P, NRCan, Esri Japan, METI, Esri China (Hong Kong), Esri Korea, Esri (Thailand), NGCC, (c) OpenStreetMap contributors, and the GIS User Community';
+const CARTO_ATTR = OSM_ATTR + ' © <a href="https://carto.com/attributions">CARTO</a>';
+const TF_ATTR = 'Maps © <a href="https://www.thunderforest.com/">Thunderforest</a>, Data © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
+const MT_ATTR = '© <a href="https://www.maptiler.com/copyright/">MapTiler</a> © <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors';
 
 const layers = {
-  osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: '© OpenStreetMap', maxZoom: 19 }),
-  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',  { attribution: '© OpenTopoMap',  maxZoom: 17 }),
-  sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: '© Esri', maxZoom: 18 }),
+  osm:  L.tileLayer('https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png', { attribution: OSM_ATTR, maxZoom: 19 }),
+  topo: L.tileLayer('https://{s}.tile.opentopomap.org/{z}/{x}/{y}.png',  { attribution: OPENTOPO_ATTR, maxZoom: 17 }),
+  sat:  L.tileLayer('https://server.arcgisonline.com/ArcGIS/rest/services/World_Imagery/MapServer/tile/{z}/{y}/{x}', { attribution: ESRI_SAT_ATTR, maxZoom: 18 }),
 };
 layers.osm.addTo(map);
 let currentLayer = 'osm';
@@ -707,7 +718,7 @@ function getMtLayer() {
   const key = localStorage.getItem('mt_key') || '';
   if (!key) return null;
   return L.tileLayer('https://api.maptiler.com/maps/topo-v2/{z}/{x}/{y}.png?key=' + key, {
-    attribution: '© MapTiler © OpenStreetMap', maxZoom: 20, tileSize: 256,
+    attribution: MT_ATTR, maxZoom: 20, tileSize: 256,
   });
 }
 
@@ -737,7 +748,7 @@ function setLayer(name) {
       'mt-sat':     'https://api.maptiler.com/maps/satellite-hybrid/{z}/{x}/{y}.jpg?key=' + key,
       'mt-streets': 'https://api.maptiler.com/maps/streets-v2/{z}/{x}/{y}.png?key=' + key,
     };
-    mtLayer = L.tileLayer(urls[name], { attribution: '© MapTiler © OpenStreetMap', maxZoom: 20 });
+    mtLayer = L.tileLayer(urls[name], { attribution: MT_ATTR, maxZoom: 20 });
     mtLayer.addTo(map);
   } else if (layers[name]) {
     layers[name].addTo(map);
@@ -754,7 +765,24 @@ function setLayer(name) {
 
 // ===== LOCAL TILE SERVER =====
 const MBTILESERVER = 'http://localhost:8092';
+const localAttributions = {};
 let localLayer = null;
+
+// The pack's TileJSON carries source_url/source_layer_name, not an attribution field.
+// Derive the provider credit from the pack's own recorded source. Never invent one.
+function creditForPack(tj, name) {
+  const source = ((tj && tj.source_url) || '') + ' ' + ((tj && tj.source_layer_name) || '') + ' ' + (name || '');
+  const s = source.toLowerCase();
+  if (s.includes('world_topo_map') || s.includes('esri topo')) return ESRI_TOPO_ATTR;
+  if (s.includes('world_imagery')) return ESRI_SAT_ATTR;
+  if (s.includes('world_street_map')) return ESRI_STREETS_ATTR;
+  if (s.includes('thunderforest.com')) return TF_ATTR;
+  if (s.includes('basemaps.cartocdn.com')) return CARTO_ATTR;
+  if (s.includes('maptiler.com')) return MT_ATTR;
+  if (s.includes('opentopomap.org')) return OPENTOPO_ATTR;
+  if (s.includes('openstreetmap.org')) return OSM_ATTR;
+  return '';
+}
 
 async function openLocalPanel() {
   const panel = document.getElementById('local-panel');
@@ -772,8 +800,22 @@ async function openLocalPanel() {
       list.innerHTML = '<span id="local-no-tiles">No local tiles yet — download in Map App first.</span>';
       return;
     }
-    list.innerHTML = services.map(function(s) {
-      return '<button class="local-layer-btn" onclick="setLocalLayer(\'' + s.id + '\',\'' + (s.name || s.id) + '\')">' + (s.name || s.id) + '</button>';
+    // This mbtileserver returns only { name, imageType, url } from /services (no id, no
+    // attribution), so the id comes from the url and the TileJSON is read for the source.
+    const packs = (await Promise.all(services.map(async function(s) {
+      const id = String(s.url || '').split('/').filter(Boolean).pop();
+      if (!id) return null;
+      let tj = {};
+      try {
+        const tr = await fetch(MBTILESERVER + '/services/' + id);
+        tj = await tr.json();
+      } catch(_) { /* name only; the credit stays blank rather than invented */ }
+      const name = tj.name || s.name || id;
+      localAttributions[id] = creditForPack(tj, name);
+      return { id: id, name: name };
+    }))).filter(Boolean);
+    list.innerHTML = packs.map(function(p) {
+      return '<button class="local-layer-btn" onclick="setLocalLayer(\'' + p.id + '\',\'' + p.name + '\')">' + p.name + '</button>';
     }).join('');
   } catch(e) {
     list.innerHTML = '<span id="local-no-tiles">mbtileserver not reachable.</span>';
@@ -787,8 +829,12 @@ function setLocalLayer(id, name) {
   if (currentLayer === 'mt' && mtLayer) { map.removeLayer(mtLayer); mtLayer = null; }
   else if (layers[currentLayer]) { map.removeLayer(layers[currentLayer]); }
 
+  // Credit derived from the pack's TileJSON source; an old Esri Topo pack with no source
+  // metadata still gets the service credit because its id/name says what it is.
+  const storedAttr = localAttributions[id] || '';
+  const attr = storedAttr || (/esri[-_ ]?topo/i.test(id + ' ' + name) ? ESRI_TOPO_ATTR : '');
   localLayer = L.tileLayer(MBTILESERVER + '/services/' + id + '/tiles/{z}/{x}/{y}.png', {
-    attribution: 'Local · ' + name, maxZoom: 18,
+    attribution: 'Local · ' + name + (attr ? ' · ' + attr : ''), maxZoom: 18,
   });
   localLayer.addTo(map);
   currentLayer = 'local';
