@@ -47,6 +47,14 @@
     #conn-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); transition: background 0.3s, box-shadow 0.3s; }
     #conn-dot.on  { background: var(--green); box-shadow: 0 0 7px rgba(61,220,132,0.55); }
     #conn-dot.off { background: var(--red);   box-shadow: 0 0 7px rgba(255,80,80,0.4); }
+    /* S466: RTL-SDR indicator (same states as ADS-B, AIS, Casper) */
+    #sdr-status { display: flex; align-items: center; gap: 6px; font-size: 0.72rem; font-weight: 500; letter-spacing: 0.07em; text-transform: uppercase; color: var(--text-muted); white-space: nowrap; }
+    #sdr-status.ok  { color: var(--green); }
+    #sdr-status.bad { color: var(--red); }
+    #sdr-dot { width: 8px; height: 8px; border-radius: 50%; background: var(--text-muted); transition: background 0.3s, box-shadow 0.3s; }
+    #sdr-dot.on   { background: var(--green);  box-shadow: 0 0 7px rgba(61,220,132,0.55); }
+    #sdr-dot.off  { background: var(--red);    box-shadow: 0 0 7px rgba(255,80,80,0.4); }
+    #sdr-dot.warn { background: var(--accent); box-shadow: 0 0 7px rgba(222,175,74,0.55); }
     .spacer { flex: 1; }
 
     .header-btn {
@@ -535,6 +543,10 @@
   <div id="conn-status">
     <div id="conn-dot"></div>
     <span id="conn-label">Connecting...</span>
+  </div>
+  <div id="sdr-status" title="RTL-SDR dongle + auto_rx">
+    <div id="sdr-dot"></div>
+    <span id="sdr-text">SDR checking…</span>
   </div>
   <div id="gps-status">
     <div id="gps-dot"></div>
@@ -1818,6 +1830,17 @@ function resetAccentColor() {
 // ===== SCAN / RELEASE =====
 let scanning = false;
 
+// S466: RTL-SDR indicator — same states/colours in ADS-B, AIS, Sonde and Casper
+async function pollSdr() {
+  let sdr;
+  try { sdr = await (await fetch('/api/sdr')).json(); }
+  catch (e) { sdr = { state: 'stalled', text: 'SDR status unavailable' }; }
+  const dot = { ok: 'on', missing: 'off', busy: 'off', stalled: 'off', starting: 'warn', idle: '' }[sdr.state] ?? '';
+  document.getElementById('sdr-dot').className = dot;
+  document.getElementById('sdr-status').className = sdr.state === 'ok' ? 'ok' : dot === 'off' ? 'bad' : '';
+  document.getElementById('sdr-text').textContent = sdr.text;
+}
+
 async function scanToggle() {
   const btn = document.getElementById('scan-btn');
   if (!scanning) {
@@ -2092,6 +2115,8 @@ connectAutoRx();
   loadGpsConfig();
   pollGps();
   setInterval(pollGps, 5000);
+  pollSdr();
+  setInterval(pollSdr, 3000);
 </script>
 <!-- Accent colour picker -->
 <div id="accent-picker-overlay" onclick="closeAccentPicker()">

@@ -2,6 +2,8 @@ from flask import Flask, render_template, jsonify, request
 import json, os, subprocess, glob, threading, time, urllib.request
 from pathlib import Path
 
+import rtlsdr_status   # S466: shared RTL-SDR indicator helpers (canonical copy: cyberdeck/launcher)
+
 app = Flask(__name__)
 PRESETS_FILE    = os.path.join(os.path.dirname(__file__), 'presets.json')
 GPS_CONFIG_FILE = Path(__file__).resolve().parent / 'gps_config.json'
@@ -147,6 +149,83 @@ def preset_tune():
             subprocess.run(['systemctl', '--user', 'restart', 'autorx'], capture_output=True)
         threading.Thread(target=do_restart, daemon=True).start()
     return jsonify({'ok': True, 'freq': freq, 'restarted': restarted})
+
+# ── RTL-SDR indicator (S466) ─────────────────────────────────────────────────
+# auto_rx: /get_task_list says what SDR #0 does; its scanner logs "(RTLSDR 0)" every ~17 s
+# (fixed-frequency mode, measured S466) = heartbeat. Decoding health is NOT measured yet.
+AUTORX_URL       = 'http://127.0.0.1:5000'
+SDR_START_GRACE  = 45.0   # auto_rx tests the SDR, then the first scan line comes ~7 s after start
+SDR_BEAT_MAX     = 60.0   # scanner silent longer than this = not responding
+_sdr = rtlsdr_status.result('starting', 'SDR checking…')
+
+def _autorx_uptime():
+    r = subprocess.run(['systemctl', '--user', 'show', 'autorx', '-p',
+                        'ActiveEnterTimestampMonotonic', '--value'], capture_output=True, text=True)
+    try:
+        us = int(r.stdout.strip())
+    except ValueError:
+        return None
+    return time.monotonic() - us / 1e6 if us else None
+
+def _autorx_last_sdr_line(since):
+    """(time, message) of the newest auto_rx journal line about RTLSDR after `since`, or (None, '')."""
+    r = subprocess.run(['journalctl', '--user', '-u', 'autorx', '-n', '60', '-o', 'json', '--no-pager'],
+                       capture_output=True, text=True, timeout=5)
+    for line in reversed(r.stdout.splitlines()):
+        try:
+            e = json.loads(line)
+        except ValueError:
+            continue
+        msg = e.get('MESSAGE')
+        if not isinstance(msg, str) or 'RTLSDR' not in msg:
+            continue
+        t = int(e.get('__REALTIME_TIMESTAMP', 0)) / 1e6
+        return (t, msg) if t >= since else (None, '')
+    return None, ''
+
+def _sdr_health():
+    R = rtlsdr_status.result
+    if not rtlsdr_status.present():
+        return R('missing', 'RTL-SDR not connected')
+    r = subprocess.run(['systemctl', '--user', 'is-active', 'autorx'], capture_output=True, text=True)
+    if r.stdout.strip() != 'active':
+        return rtlsdr_status.not_running(('Sonde',))
+    up = _autorx_uptime()
+    starting = up is not None and up < SDR_START_GRACE
+    wait = R('starting', 'SDR starting…')
+    try:
+        with urllib.request.urlopen(AUTORX_URL + '/get_task_list', timeout=2) as resp:
+            tasks = json.load(resp)
+        task = tasks.get('0') or next(iter(tasks.values()))
+    except Exception:
+        return wait if starting else R('stalled', 'SDR not responding · auto_rx not answering')
+    beat, msg = _autorx_last_sdr_line(time.time() - up if up else 0)
+    if msg and ('ERROR' in msg or 'failed' in msg.lower()):
+        return R('stalled', 'SDR error · ' + msg.split(' - ', 1)[-1][:70])
+    name, freq = task.get('task', ''), task.get('freq') or 0
+    if name == 'Scanning':
+        if beat is None or time.time() - beat > SDR_BEAT_MAX:
+            return wait if starting else R('stalled', 'SDR not responding · scanner silent')
+        return R('ok', 'SDR working · scanning')
+    if not name or name == 'Not Tasked':
+        return wait if starting else R('stalled', 'SDR not tasked by auto_rx')
+    mhz = freq / 1e6 if freq > 1e5 else freq
+    return R('ok', f'SDR working · decoding {name}' + (f' {mhz:.3f} MHz' if mhz else ''))
+
+def _sdr_poll():
+    global _sdr
+    while True:
+        try:
+            _sdr = _sdr_health()
+        except Exception as exc:
+            _sdr = rtlsdr_status.result('stalled', f'SDR check failed: {exc}')
+        time.sleep(3.0)
+
+threading.Thread(target=_sdr_poll, daemon=True).start()
+
+@app.route('/api/sdr')
+def api_sdr():
+    return jsonify(_sdr)
 
 @app.route('/api/scan/start', methods=['POST'])
 def scan_start():
